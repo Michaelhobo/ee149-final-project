@@ -4,6 +4,19 @@ The UC Berkeley EECS149 Fire Detection Drone Project is a Clone of the Ardupilot
 
 Thank you to the ArduPilot development community for creating an easy to use base platform for this class project. Our project builds on the original ArduPilot program with additional code to help it detect and find fires.
 
+# Notes
+
+This project is only developed for APM2.6. The Master branch has been switched to 
+
+# Building the Project
+
+Go to ardupilot/ArduCopter
+Run make
+
+# Uploading to APM2.6
+Go to ardupilot/ArduCopter
+Run make upload
+
 # Snippet from the original Ardupilot team:
 #
 # ArduPilot Development Team
