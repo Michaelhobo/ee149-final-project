@@ -6,7 +6,12 @@ Thank you to the ArduPilot development community for creating an easy to use bas
 
 # Notes
 
-This project is only developed for APM2.6. The Master branch has been switched to 
+This project is only developed for APM2.6. The Master branch has been switched to ArduCopter 3.2
+
+If using this code with an RC controller, we could simply upload ArduCopter.pde. However, we want to automate our quadcopter. The problem is that outputs to the motors are through the RC_Channel library.
+To start writing our own code, upload AP_Motors_test.pde. This is a good demonstration of how to write to the motors through the RC_Channel library without actually using an RC Controller. You may need to increase the value of the motors.output_test to actually actuate the motors.
+
+
 
 # Building the Project
 
