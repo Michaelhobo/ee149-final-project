@@ -18,7 +18,7 @@ const AP_Param::GroupInfo PID::var_info[] PROGMEM = {
     AP_GROUPINFO("IMAX", 3, PID, _imax, 0),
     AP_GROUPEND
 };
-
+// pid == proportion intergral derivative
 float PID::get_pid(float error, float scaler)
 {
     uint32_t tnow = hal.scheduler->millis();
@@ -28,7 +28,6 @@ float PID::get_pid(float error, float scaler)
 
     if (_last_t == 0 || dt > 1000) {
         dt = 0;
-
 		// if this PID hasn't been used for a full second then zero
 		// the intergator term. This prevents I buildup from a
 		// previous fight mode from causing a massive return before
@@ -36,9 +35,7 @@ float PID::get_pid(float error, float scaler)
 		reset_I();
     }
     _last_t = tnow;
-
     delta_time = (float)dt / 1000.0f;
-
     // Compute proportional component
     output += error * _kp;
 

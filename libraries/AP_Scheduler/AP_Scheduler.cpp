@@ -43,6 +43,7 @@ void AP_Scheduler::init(const AP_Scheduler::Task *tasks, uint8_t num_tasks)
 {
     _tasks = tasks;
     _num_tasks = num_tasks;
+    // _last_run is an array with _num_tasks indexes
     _last_run = new uint16_t[_num_tasks];
     memset(_last_run, 0, sizeof(_last_run[0]) * _num_tasks);
     _tick_counter = 0;
@@ -60,17 +61,21 @@ void AP_Scheduler::tick(void)
  */
 void AP_Scheduler::run(uint16_t time_available)
 {
+    // setting up now thru hal.scheduler kinda like giving time which part of sche the program is on
     uint32_t run_started_usec = hal.scheduler->micros();
-    uint32_t now = run_started_usec;
+    uint32_t now = run_started_usec; // now is timestart offset
 
-    for (uint8_t i=0; i<_num_tasks; i++) {
+    for (uint8_t i=0; i<_num_tasks; i++) { // go thru all func in the sche
+        // dt is change in TICKS, not time
+        // during the first iter of loop(), dt should be 1 b/c 1 - 0
         uint16_t dt = _tick_counter - _last_run[i];
+        // interval_ticks the second index of tasks[]
         uint16_t interval_ticks = pgm_read_word(&_tasks[i].interval_ticks);
-        if (dt >= interval_ticks) {
+        if (dt >= interval_ticks) { // if dt is greater or eq to 2nd index
             // this task is due to run. Do we have enough time to run it?
+            // reading how much max time to preform the task, the 3rd index
             _task_time_allowed = pgm_read_word(&_tasks[i].max_time_micros);
-
-            if (dt >= interval_ticks*2) {
+            if (dt >= interval_ticks*2) { // if dt is greater than 2 times 2nd index
                 // we've slipped a whole run of this task!
                 if (_debug > 1) {
                     hal.console->printf_P(PSTR("Scheduler slip task[%u] (%u/%u/%u)\n"), 
@@ -79,49 +84,53 @@ void AP_Scheduler::run(uint16_t time_available)
                                           (unsigned)interval_ticks,
                                           (unsigned)_task_time_allowed);
                 }
-            }
-            
-            if (_task_time_allowed <= time_available) {
+                // i believe this is for debugging purposes by i do not know how the _debug is updated
+            } // this is just err checking, can ignore for a sec
+            if (_task_time_allowed <= time_available) { // timeavailable is a pass-in val
                 // run it
-                _task_time_started = now;
-                task_fn_t func = (task_fn_t)pgm_read_pointer(&_tasks[i].function);
-                current_task = i;
-                func();
+                _task_time_started = now; // now is micros(), which is amount of time that the program has been running
+                task_fn_t func = (task_fn_t)pgm_read_pointer(&_tasks[i].function); // get the 1st index to func
+                current_task = i; // current_task is set to iter num
+                func(); // perform the func
                 current_task = -1;
                 
                 // record the tick counter when we ran. This drives
                 // when we next run the event
-                _last_run[i] = _tick_counter;
-                
+                _last_run[i] = _tick_counter; // lastrun gets set to tick but under what condition?
+                // conditions:
+                // dt >= 2nd index of sche
+                // maxtime <= extratime ; maxtime is 3rd index
+                // this let us know that the last time this func is ran in the program
+
                 // work out how long the event actually took
-                now = hal.scheduler->micros();
-                uint32_t time_taken = now - _task_time_started;
-                
-                if (time_taken > _task_time_allowed) {
+                now = hal.scheduler->micros(); // now is reset to the time that the program has been up
+                uint32_t time_taken = now - _task_time_started; // time_taken is t_f-t_i, this gives us the amout of time it took for the func have ran
+                if (time_taken > _task_time_allowed) { // if takentime is longer than maxtime
                     // the event overran!
+                    // i dun get it but it is kinda similar to prev err check
                     if (_debug > 2) {
                         hal.console->printf_P(PSTR("Scheduler overrun task[%u] (%u/%u)\n"), 
                                               (unsigned)i, 
                                               (unsigned)time_taken,
                                               (unsigned)_task_time_allowed);
-                    }
+                    } 
+                } // err checking and letting as know that the program overran
+                if (time_taken >= time_available) { // if takentime is greater or eq to availabletime
+                    goto update_spare_ticks; // jump to this just few lines below this
                 }
-                if (time_taken >= time_available) {
-                    goto update_spare_ticks;
-                }
-                time_available -= time_taken;
+                time_available -= time_taken; // else, we will just run the func and acc_sub from the availabletime
             }
         }
     }
 
     // update number of spare microseconds
-    _spare_micros += time_available;
+    _spare_micros += time_available; // sparemicros is u32bit
 
 update_spare_ticks:
     _spare_ticks++;
-    if (_spare_ticks == 32) {
-        _spare_ticks /= 2;
-        _spare_micros /= 2;
+    if (_spare_ticks == 32) { // why??
+        _spare_ticks /= 2; // spareticks is u8bit
+        _spare_micros /= 2; 
     }
 }
 

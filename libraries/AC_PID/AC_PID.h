@@ -45,7 +45,6 @@ public:
         _d_lpf_alpha(AC_PID_D_TERM_FILTER)
     {
 		AP_Param::setup_object_defaults(this, var_info);
-
         _kp = initial_p;
         _ki = initial_i;
         _kd = initial_d;

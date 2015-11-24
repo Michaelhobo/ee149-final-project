@@ -7,8 +7,8 @@
 #include "AC_PID.h"
 
 const AP_Param::GroupInfo AC_PID::var_info[] PROGMEM = {
-    // @Param: P
-    // @DisplayName: PID Proportional Gain
+    // @Param: P; kp
+    // @DisplayName: PID Proportional Gain; kp is the initial_p
     // @Description: P Gain which produces an output value that is proportional to the current error value
     AP_GROUPINFO("P",    0, AC_PID, _kp, 0),
     // @Param: I
