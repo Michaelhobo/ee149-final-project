@@ -45,12 +45,12 @@ const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
 //PID Array (6 pids, two for each axis)
 PID pids[6];
-#define PID_PITCH_RATE 0
-#define PID_ROLL_RATE 1
-#define PID_PITCH_STAB 2
-#define PID_ROLL_STAB 3
-#define PID_YAW_RATE 4
-#define PID_YAW_STAB 5
+int PID_PITCH_RATE = 0;
+int PID_ROLL_RATE = 1;
+int PID_PITCH_STAB = 2;
+int PID_ROLL_STAB = 3;
+int PID_YAW_RATE = 4;
+int PID_YAW_STAB = 5;
 
 // Arduino map function
 long map(long x, long in_min, long in_max, long out_min, long out_max)
@@ -61,16 +61,18 @@ long map(long x, long in_min, long in_max, long out_min, long out_max)
 #define wrap_180(x) (x < -180 ? x+360 : (x > 180 ? x - 360: x))
 
 
-AP_IntertialSensor_MPU6000 ins;
+AP_InertialSensor_MPU6000 ins;
 
 // Radio min/max values for each. Need to calibrate
-#define RC_THR_MIN   1070
-#define RC_YAW_MIN   1068
-#define RC_YAW_MAX   1915
-#define RC_PIT_MIN   1077
-#define RC_PIT_MAX   1915
-#define RC_ROL_MIN   1090
-#define RC_ROL_MAX   1913
+long RC_THR_MIN = 1070;
+long RC_YAW_MIN = 1068;
+long RC_YAW_MAX = 1915;
+long RC_PIT_MIN = 1077;
+long RC_PIT_MAX = 1915;
+long RC_ROL_MIN = 1090;
+long RC_ROL_MAX = 1913;
+
+
 
 // Motor numbers definitions
 #define MOTOR_FL   2    // Front left    
@@ -128,9 +130,7 @@ void setup()
     pids[PID_YAW_STAB].kP(10);
 
     // Turn on MPU6050 - quad must be kept still as gyros will calibrate
-    ins.init(AP_InertialSensor::COLD_START, 
-			 AP_InertialSensor::RATE_100HZ,
-                        NULL);
+    ins.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ,  NULL);
     //initialize sensor fusion on MPU6050 chip (DigitalMotionProcessing/DMP)
     hal.scheduler->suspend_timer_procs();  // stop bus collisions
     ins.dmp_init();
@@ -190,6 +190,8 @@ void stability_test()
 {
     int16_t value, roll_in, pitch_in, yaw_in, throttle_in, throttle_radio_in, avg_out;
 
+
+
     int16_t testing_array[][4] = {
         //  roll,   pitch,  yaw,    throttle
         {   0,      0,      0,      0},
@@ -238,7 +240,7 @@ void stability_test()
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
 
-    static fload yaw_target = 0;
+    static float yaw_target = 0;
     
     uint16_t channels[8];
 
