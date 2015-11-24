@@ -135,14 +135,11 @@ void stability_test()
     int16_t testing_array[][4] = {
         //  roll,   pitch,  yaw,    throttle
         {   0,      0,      0,      0},
-        {   0,      0,      0,      200},
-	{   0,      0,      0,      400},
+        {   0,      0,      0,      500},
 	{   0,      0,      0,      500},
-	{   0,      0,      0,      600},
 	{   0,      0,      0,      500},
-	{   0,      0,      0,      400},
+	{   0,      0,      0,      500},
 	{   0,      0,      0,      300},
-	{   0,      0,      0,      200},
 	{   0,	    0, 	    0, 	    100},
       //  {   0,      0,      0,      300},
       //  {   4500,   0,      0,      300},
@@ -175,7 +172,7 @@ void stability_test()
       //  {5000,      0,   4500,      1000}
     };
     //uint32_t testing_array_rows = 32;
-    uint32_t testing_array_rows = 10;
+    uint32_t testing_array_rows = 7;
  
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
