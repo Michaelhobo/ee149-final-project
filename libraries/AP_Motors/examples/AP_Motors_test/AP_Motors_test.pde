@@ -1,7 +1,12 @@
 /*
  *  Example of AP_Motors library.
  *  Code by Randy Mackay. DIYDrones.com
+ *
+ *  Initial PID values from Gareth Owenson
+ *
+ * Author: Henry Chang
  */
+
 
 // Libraries
 #include <AP_Common.h>
@@ -34,20 +39,48 @@
 #include <StorageManager.h>
 #include <AP_Terrain.h>
 #include <AP_NavEKF.h>
-//#include <PID.h>
+#include <PID.h>
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
+//PID Array (6 pids, two for each axis)
+PID pids[6];
+#define PID_PITCH_RATE 0
+#define PID_ROLL_RATE 1
+#define PID_PITCH_STAB 2
+#define PID_ROLL_STAB 3
+#define PID_YAW_RATE 4
+#define PID_YAW_STAB 5
+
+// Arduino map function
+long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+#define wrap_180(x) (x < -180 ? x+360 : (x > 180 ? x - 360: x))
+
+
+AP_IntertialSensor_MPU6000 ins;
+
+// Radio min/max values for each. Need to calibrate
+#define RC_THR_MIN   1070
+#define RC_YAW_MIN   1068
+#define RC_YAW_MAX   1915
+#define RC_PIT_MIN   1077
+#define RC_PIT_MAX   1915
+#define RC_ROL_MIN   1090
+#define RC_ROL_MAX   1913
+
+// Motor numbers definitions
+#define MOTOR_FL   2    // Front left    
+#define MOTOR_FR   0    // Front right
+#define MOTOR_BL   1    // back left
+#define MOTOR_BR   3    // back right
+
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 
-// uncomment the row below depending upon what frame you are using
-//AP_MotorsTri	motors(rc1, rc2, rc3, rc4);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHexa	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsY6	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOcta	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOctaQuad	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHeli	motors(rc1, rc2, rc3, rc4);
 
 
 // setup
@@ -72,11 +105,36 @@ void setup()
 	    // cope with AP_Param not being loaded
 	    rc3.radio_max = 2000;
     }
-    // set rc channel ranges
-    rc1.set_angle(4500);
+    // set rc channel ranges. rc1,2,4 map to pitch roll yaw in some order
+    rc1.set_angle(4500); 
     rc2.set_angle(4500);
-    rc3.set_range(130, 1000);
+    rc3.set_range(130, 1000); //throttle
     rc4.set_angle(4500);
+
+    pids[PID_PITCH_RATE].kP(0.7);
+    pids[PID_PITCH_RATE].kI(1);
+    pids[PID_PITCH_RATE].imax(50);
+  
+    pids[PID_ROLL_RATE].kP(0.7);
+    pids[PID_ROLL_RATE].kI(1);
+    pids[PID_ROLL_RATE].imax(50);
+
+    pids[PID_YAW_RATE].kP(2.7);
+    pids[PID_YAW_RATE].kI(1);
+    pids[PID_YAW_RATE].imax(50);
+
+    pids[PID_PITCH_STAB].kP(4.5);
+    pids[PID_ROLL_STAB].kP(4.5);
+    pids[PID_YAW_STAB].kP(10);
+
+    // Turn on MPU6050 - quad must be kept still as gyros will calibrate
+    ins.init(AP_InertialSensor::COLD_START, 
+			 AP_InertialSensor::RATE_100HZ,
+                        NULL);
+    //initialize sensor fusion on MPU6050 chip (DigitalMotionProcessing/DMP)
+    hal.scheduler->suspend_timer_procs();  // stop bus collisions
+    ins.dmp_init();
+    hal.scheduler->resume_timer_procs();
 
     motors.enable();
     motors.output_min();
@@ -110,7 +168,7 @@ void loop()
     }
 }
 
-// stability_test
+// individual_motor_test
 void motor_order_test()
 {
     hal.console->println("testing motor order");
@@ -179,6 +237,13 @@ void stability_test()
  
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
+
+    static fload yaw_target = 0;
+    
+    uint16_t channels[8];
+
+    long rcthr, rcyaw, rcpit, rcroll; //Variables to store radio in
+
     // arm motors
     motors.armed(true);
 
@@ -209,6 +274,53 @@ void stability_test()
                 (int)hal.rcout->read(3),
                 (int)throttle_radio_in,
                 (int)avg_out);
+
+
+      //Wait until new orientation data (normlly 5ms max)
+      while (ins.num_samples_available() == 0);
+    
+      hal.rcin->read(channels,8);
+    
+      rcthr = channels[2];
+      rcyaw = map(channels[3], RC_YAW_MIN, RC_YAW_MAX, -180, 180);
+      rcpit = map(channels[1], RC_PIT_MIN, RC_PIT_MAX, -45, 45);
+      rcroll = map(channels[0], RC_ROL_MIN, RC_ROL_MAX, -45, 45);
+
+      // Ask MPU6050 for orientation
+      ins.update();
+      float roll,pitch,yaw;  
+      ins.quaternion.to_euler(&roll, &pitch, &yaw);
+      roll = ToDeg(roll) ;
+      pitch = ToDeg(pitch) ;
+      yaw = ToDeg(yaw) ;
+  
+      // Ask MPU6050 for gyro data
+      Vector3f gyro = ins.get_gyro();
+      float gyroPitch = ToDeg(gyro.y), gyroRoll = ToDeg(gyro.x), gyroYaw = ToDeg(gyro.z);
+    
+      // Do the magic
+      if(rcthr > RC_THR_MIN + 100) {  // Throttle raised, turn on stablisation.
+        // Stablise PIDS
+        float pitch_stab_output = constrain(pids[PID_PITCH_STAB].get_pid((float)rcpit - pitch, 1), -250, 250); 
+        float roll_stab_output = constrain(pids[PID_ROLL_STAB].get_pid((float)rcroll - roll, 1), -250, 250);
+        float yaw_stab_output = constrain(pids[PID_YAW_STAB].get_pid(wrap_180(yaw_target - yaw), 1), -360, 360);
+  
+        // is pilot asking for yaw change - if so feed directly to rate pid (overwriting yaw stab output)
+        if(abs(rcyaw ) > 5) {
+          yaw_stab_output = rcyaw;
+          yaw_target = yaw;   // remember this yaw for when pilot stops
+        }
+        // rate PIDS
+        long pitch_output =  (long) constrain(pids[PID_PITCH_RATE].get_pid(pitch_stab_output - gyroPitch, 1), - 500, 500);  
+        long roll_output =  (long) constrain(pids[PID_ROLL_RATE].get_pid(roll_stab_output - gyroRoll, 1), -500, 500);       long yaw_output =  (long) constrain(pids[PID_YAW_RATE].get_pid(yaw_stab_output - gyroYaw, 1), -500, 500); 
+
+        // mix pid outputs and send to the motors.
+        hal.rcout->write(MOTOR_FL, rcthr + roll_output + pitch_output - yaw_output); 
+        hal.rcout->write(MOTOR_BL, rcthr + roll_output - pitch_output + yaw_output);
+        hal.rcout->write(MOTOR_FR, rcthr - roll_output + pitch_output + yaw_output);
+        hal.rcout->write(MOTOR_BR, rcthr - roll_output - pitch_output - yaw_output);
+      } 
+
     hal.scheduler->delay(2000);
     }
     // set all inputs to motor library to zero and disarm motors
