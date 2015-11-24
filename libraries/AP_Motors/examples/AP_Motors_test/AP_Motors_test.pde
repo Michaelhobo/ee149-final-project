@@ -34,6 +34,7 @@
 #include <StorageManager.h>
 #include <AP_Terrain.h>
 #include <AP_NavEKF.h>
+//#include <PID.h>
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
@@ -104,6 +105,7 @@ void loop()
         motor_order_test();
     }
     if (value == 's' || value == 'S') {
+	hal.scheduler->delay(7000);
         stability_test();
     }
 }
@@ -115,7 +117,7 @@ void motor_order_test()
     motors.armed(true);
     for (int8_t i=1; i <= AP_MOTORS_MAX_NUM_MOTORS; i++) {
         hal.console->printf_P(PSTR("Motor %d\n"),(int)i);
-        motors.output_test(i, 1150); //previously 1150
+        motors.output_test(i, 1300); //previously 1150
         hal.scheduler->delay(300);
         motors.output_test(i, 1000);
         hal.scheduler->delay(2000);
@@ -133,8 +135,15 @@ void stability_test()
     int16_t testing_array[][4] = {
         //  roll,   pitch,  yaw,    throttle
         {   0,      0,      0,      0},
-        {   0,      0,      0,      100},
         {   0,      0,      0,      200},
+	{   0,      0,      0,      400},
+	{   0,      0,      0,      500},
+	{   0,      0,      0,      600},
+	{   0,      0,      0,      500},
+	{   0,      0,      0,      400},
+	{   0,      0,      0,      300},
+	{   0,      0,      0,      200},
+	{   0,	    0, 	    0, 	    100},
       //  {   0,      0,      0,      300},
       //  {   4500,   0,      0,      300},
       //  {   -4500,  0,      0,      300},
@@ -166,7 +175,7 @@ void stability_test()
       //  {5000,      0,   4500,      1000}
     };
     //uint32_t testing_array_rows = 32;
-    uint32_t testing_array_rows = 3;
+    uint32_t testing_array_rows = 10;
  
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
