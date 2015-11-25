@@ -1,7 +1,3 @@
-/*
- *  Example of AP_Motors library.
- *  Code by Randy Mackay. DIYDrones.com
- */
 
 // Libraries
 #include <AP_Common.h>
@@ -34,19 +30,20 @@
 #include <StorageManager.h>
 #include <AP_Terrain.h>
 #include <AP_NavEKF.h>
+//#include <PID.h>
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 
 // uncomment the row below depending upon what frame you are using
-//AP_MotorsTri	motors(rc1, rc2, rc3, rc4);
+//AP_MotorsTri  motors(rc1, rc2, rc3, rc4);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHexa	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsY6	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOcta	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOctaQuad	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHeli	motors(rc1, rc2, rc3, rc4);
+//AP_MotorsHexa motors(rc1, rc2, rc3, rc4);
+//AP_MotorsY6   motors(rc1, rc2, rc3, rc4);
+//AP_MotorsOcta motors(rc1, rc2, rc3, rc4);
+//AP_MotorsOctaQuad motors(rc1, rc2, rc3, rc4);
+//AP_MotorsHeli motors(rc1, rc2, rc3, rc4);
 
 
 // setup
@@ -64,12 +61,12 @@ void setup()
 
     // setup radio
     if (rc3.radio_min == 0) {
-	    // cope with AP_Param not being loaded
-	    rc3.radio_min = 1000;
+        // cope with AP_Param not being loaded
+        rc3.radio_min = 1000;
     }
     if (rc3.radio_max == 0) {
-	    // cope with AP_Param not being loaded
-	    rc3.radio_max = 2000;
+        // cope with AP_Param not being loaded
+        rc3.radio_max = 2000;
     }
     // set rc channel ranges
     rc1.set_angle(4500);
@@ -104,6 +101,7 @@ void loop()
         motor_order_test();
     }
     if (value == 's' || value == 'S') {
+    hal.scheduler->delay(7000);
         stability_test();
     }
 }
@@ -115,7 +113,7 @@ void motor_order_test()
     motors.armed(true);
     for (int8_t i=1; i <= AP_MOTORS_MAX_NUM_MOTORS; i++) {
         hal.console->printf_P(PSTR("Motor %d\n"),(int)i);
-        motors.output_test(i, 1150);
+        motors.output_test(i, 1300); //previously 1150
         hal.scheduler->delay(300);
         motors.output_test(i, 1000);
         hal.scheduler->delay(2000);
@@ -136,43 +134,61 @@ void stability_test()
         {   0,      0,      0,      100},
         {   0,      0,      0,      200},
         {   0,      0,      0,      300},
-        {   4500,   0,      0,      300},
-        {   -4500,  0,      0,      300},
-        {   0,   4500,      0,      300},
-        {   0,  -4500,      0,      300},
-        {   0,      0,   4500,      300},
-        {   0,      0,  -4500,      300},
         {   0,      0,      0,      400},
         {   0,      0,      0,      500},
-        {   0,      0,      0,      600},
-        {   0,      0,      0,      700},
-        {   0,      0,      0,      800},
-        {   0,      0,      0,      900},
-        {   0,      0,      0,      1000},
-        {   4500,   0,      0,      1000},
-        {   -4500,  0,      0,      1000},
-        {   0,   4500,      0,      1000},
-        {   0,  -4500,      0,      1000},
-        {   0,      0,   4500,      1000},
-        {   0,      0,  -4500,      1000},
-        {5000,   1000,      0,      1000},
-        {5000,   2000,      0,      1000},
-        {5000,   3000,      0,      1000},
-        {5000,   4000,      0,      1000},
-        {5000,   5000,      0,      1000},
-        {5000,      0,   1000,      1000},
-        {5000,      0,   2000,      1000},
-        {5000,      0,   3000,      1000},
-        {5000,      0,   4500,      1000}
+        {   0,      0,      0,      420},
+      //  {   0,      0,      0,      300},
+      //  {   4500,   0,      0,      300},
+      //  {   -4500,  0,      0,      300},
+      //  {   0,   4500,      0,      300},
+      //  {   0,  -4500,      0,      300},
+      //  {   0,      0,   4500,      300},
+      //  {   0,      0,  -4500,      300},
+      //  {   0,      0,      0,      400},
+      //  {   0,      0,      0,      500},
+      //  {   0,      0,      0,      600},
+      //  {   0,      0,      0,      700},
+      //  {   0,      0,      0,      800},
+      //  {   0,      0,      0,      900},
+      //  {   0,      0,      0,      1000},
+      //  {   4500,   0,      0,      1000},
+      //  {   -4500,  0,      0,      1000},
+      //  {   0,   4500,      0,      1000},
+      //  {   0,  -4500,      0,      1000},
+      //  {   0,      0,   4500,      1000},
+      //  {   0,      0,  -4500,      1000},
+      //  {5000,   1000,      0,      1000},
+      //  {5000,   2000,      0,      1000},
+      //  {5000,   3000,      0,      1000},
+      //  {5000,   4000,      0,      1000},
+      //  {5000,   5000,      0,      1000},
+      //  {5000,      0,   1000,      1000},
+      //  {5000,      0,   2000,      1000},
+      //  {5000,      0,   3000,      1000},
+      //  {5000,      0,   4500,      1000}
     };
-    uint32_t testing_array_rows = 32;
+    //uint32_t testing_array_rows = 32;
+    uint32_t testing_array_rows = 7;
+ 
+    int16_t testing_landing_array[][4] = {
+        //  roll,   pitch,  yaw,    throttle
+        {   0,      0,      0,      420},
+        {   0,      0,      0,      360},
+        {   0,      0,      0,      300},
+        {   0,      0,      0,      240},
+        {   0,      0,      0,      180},
+        {   0,      0,      0,      120},
+        {   0,      0,      0,      60},
+    };
+
+    uint32_t testing_landing_array_rows = 7;
 
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
     // arm motors
     motors.armed(true);
 
-    // run stability test
+    // this is a lifting loop
     for (int16_t i=0; i < testing_array_rows; i++) {
         roll_in = testing_array[i][0];
         pitch_in = testing_array[i][1];
@@ -199,12 +215,52 @@ void stability_test()
                 (int)hal.rcout->read(3),
                 (int)throttle_radio_in,
                 (int)avg_out);
+    hal.scheduler->delay(3000);
+    }
+
+    // while loop
+    while (true) {
+      // if (battery_read() < X) {
+        break; // this is not doing anything right now but we can build on top of this 
+        // we can also use goto:
+      // } // as of now i m gona comment them out since we r just workong on flight
+    }
+
+    // this is the landing loop
+    for (int16_t i=0; i < testing_landing_array_rows; i++) {
+        roll_in = testing_landing_array[i][0];
+        pitch_in = testing_landing_array[i][1];
+        yaw_in = testing_landing_array[i][2];
+        throttle_in = testing_landing_array[i][3];
+        motors.set_pitch(roll_in);
+        motors.set_roll(pitch_in);
+        motors.set_yaw(yaw_in);
+        motors.set_throttle(throttle_in);
+        motors.output();
+        // calc average output
+        throttle_radio_in = rc3.radio_out;
+        avg_out = ((hal.rcout->read(0) + hal.rcout->read(1) + hal.rcout->read(2) + hal.rcout->read(3))/4);
+
+        // display input and output
+        hal.console->printf_P(PSTR("R:%5d \tP:%5d \tY:%5d \tT:%5d\tMOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t ThrIn/AvgOut:%5d/%5d\n"),
+                (int)roll_in,
+                (int)pitch_in,
+                (int)yaw_in,
+                (int)throttle_in,
+                (int)hal.rcout->read(0),
+                (int)hal.rcout->read(1),
+                (int)hal.rcout->read(2),
+                (int)hal.rcout->read(3),
+                (int)throttle_radio_in,
+                (int)avg_out);
+    hal.scheduler->delay(2000);
     }
     // set all inputs to motor library to zero and disarm motors
     motors.set_pitch(0);
     motors.set_roll(0);
     motors.set_yaw(0);
     motors.set_throttle(0);
+    motors.output();
     motors.armed(false);
 
     hal.console->println("finished test.");
