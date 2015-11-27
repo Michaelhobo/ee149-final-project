@@ -1,12 +1,12 @@
 /** @file
  *	@brief MAVLink comm protocol generated from common.xml
- *	@see http://qgroundcontrol.org/mavlink/
+ *	@see http://mavlink.org
  */
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef MAVLINK_COMMON_H
+#define MAVLINK_COMMON_H
 
 #ifndef MAVLINK_H
-    #error Wrong include order: COMMON.H MUST NOT BE DIRECTLY USED. Include mavlink.h from the same directory instead or set ALL AND EVERY defines from MAVLINK.H manually accordingly, including the #define MAVLINK_H call.
+    #error Wrong include order: MAVLINK_COMMON.H MUST NOT BE DIRECTLY USED. Include mavlink.h from the same directory instead or set ALL AND EVERY defines from MAVLINK.H manually accordingly, including the #define MAVLINK_H call.
 #endif
 
 #ifdef __cplusplus
@@ -169,7 +169,8 @@ typedef enum MAV_STATE
 	MAV_STATE_CRITICAL=5, /* System is in a non-normal flight mode. It can however still navigate. | */
 	MAV_STATE_EMERGENCY=6, /* System is in a non-normal flight mode. It lost control over parts or over the whole airframe. It is in mayday and going down. | */
 	MAV_STATE_POWEROFF=7, /* System just initialized its power-down sequence, will shut down now. | */
-	MAV_STATE_ENUM_END=8, /*  | */
+	MAV_STATE_FIREBOUND=8, /* Following temperature threshold for fire. | */
+	MAV_STATE_ENUM_END=9, /*  | */
 } MAV_STATE;
 #endif
 
@@ -681,4 +682,4 @@ typedef enum MAV_BATTERY_FUNCTION
 #ifdef __cplusplus
 }
 #endif // __cplusplus
-#endif // COMMON_H
+#endif // MAVLINK_COMMON_H
