@@ -73,7 +73,7 @@ static bool start_command(const AP_Mission::Mission_Command& cmd)
     case MAV_CMD_NAV_SPLINE_WAYPOINT:           // 82  Navigate to Waypoint using spline
         do_spline_wp(cmd);
         break;
-    case MAV_CMD_NAV_CHANGE_DIR:
+    case MAV_CMD_NAV_DIR:
         //FIREDRONE
         do_change_dir(cmd);
         break;

@@ -611,7 +611,7 @@
                     <param index="7">Empty</param>
                </entry>
                <!-- FIREDRONE-->
-               <entry value="93" name="MAV_CMD_NAV_CHANGE_DIR">
+               <entry value="93" name="MAV_CMD_NAV_DIR">
                     <description>Navigate to a new direction, specified as a cardinal direction {N,W,S,E,NW,NE,SW,SE}. </description>
                     <param index="1">Empty</param>
                     <param index="2">Empty</param>
