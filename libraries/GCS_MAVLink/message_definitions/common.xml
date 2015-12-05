@@ -247,6 +247,7 @@
                <entry name="MAV_STATE_POWEROFF">
                     <description>System just initialized its power-down sequence, will shut down now.</description>
                </entry>
+                <!--FIREDRONE-->
                <entry name="MAV_STATE_FIREBOUND">
                     <description>Following temperature threshold for fire.</description>
                 </entry> 
@@ -609,6 +610,17 @@
                     <param index="6">Empty</param>
                     <param index="7">Empty</param>
                </entry>
+               <!-- FIREDRONE-->
+               <entry value="93" name="MAV_CMD_NAV_CHANGE_DIR">
+                    <description>Navigate to a new direction, specified as a cardinal direction {N,W,S,E,NW,NE,SW,SE}. </description>
+                    <param index="1">Empty</param>
+                    <param index="2">Empty</param>
+                    <param index="3">Empty</param>
+                    <param index="4">Empty</param>
+                    <param index="5">Empty</param>
+                    <param index="6">Empty</param>
+                    <param index="7">Empty</param>
+               </entry>
                <entry value="95" name="MAV_CMD_NAV_LAST">
                     <description>NOP - This command is only used to mark the upper limit of the NAV/ACTION commands in the enumeration</description>
                     <param index="1">Empty</param>
@@ -619,6 +631,7 @@
                     <param index="6">Empty</param>
                     <param index="7">Empty</param>
                </entry>
+               
                <entry value="112" name="MAV_CMD_CONDITION_DELAY">
                     <description>Delay mission state machine.</description>
                     <param index="1">Delay in seconds (decimal)</param>
