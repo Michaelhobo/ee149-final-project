@@ -438,9 +438,9 @@ static void NOINLINE send_statustext(mavlink_channel_t chan)
         s->text);
 }
 
-# Fire Detection Drone mavlink messages
+// Fire Detection Drone mavlink messages
 
-static void NOINLINE send_
+//static void NOINLINE send_
 
 // are we still delaying telemetry to try to avoid Xbee bricking?
 static bool telemetry_delayed(mavlink_channel_t chan)
