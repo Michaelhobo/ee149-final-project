@@ -88,8 +88,7 @@ static Parameters g;
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
 
-TODO: ins needs to take in a param. check how i fixed this in henry_1.1
-AP_InertialSensor_MPU6000 ins;
+AP_InertialSensor ins;
 
 AP_Baro_MS5611 baro(&AP_Baro_MS5611::spi);
 AP_GPS gps;
