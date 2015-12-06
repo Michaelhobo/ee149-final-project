@@ -44,14 +44,73 @@
 #include <AP_Buffer.h>          // FIFO buffer library
 #include <AC_PID.h>            // PID library
 
+
 #define LAND_SPEED    -20          // the descent speed for the final stage of landing in cm/s
 #define LAND_DETECTOR_TRIGGER 50    // number of 50hz iterations with near zero climb rate and low throttle that triggers landing complete.
 #define LAND_DETECTOR_CLIMBRATE_MAX    30  // vehicle climb rate must be between -30 and +30 cm/s
 #define LAND_DETECTOR_BARO_CLIMBRATE_MAX   150  // barometer climb rate must be between -150cm/s ~ +150cm/s
 #define LAND_DETECTOR_DESIRED_CLIMBRATE_MAX    -20    // vehicle desired climb rate must be below -20cm/s
 #define LAND_DETECTOR_ROTATION_MAX    0.50f   // vehicle rotation must be below 0.5 rad/sec (=30deg/sec for) vehicle to consider itself landed
+#define MAIN_LOOP_SECONDS 0.01
+
+
+ # define RATE_ROLL_P                   0.150f
+ # define RATE_ROLL_I                   0.100f
+ # define RATE_ROLL_D                   0.004f
+ # define RATE_ROLL_IMAX                1000
+
+ # define RATE_PITCH_P                  0.150f
+ # define RATE_PITCH_I                  0.100f
+ # define RATE_PITCH_D                  0.004f
+ # define RATE_PITCH_IMAX               1000
+
+ # define RATE_YAW_P                    0.200f
+ # define RATE_YAW_I                    0.020f
+ # define RATE_YAW_D                    0.000f
+ # define RATE_YAW_IMAX                 1000
+
+ # define STABILIZE_ROLL_P		4.5f
+ # define STABILIZE_PITCH_P		4.5f
+ # define STABILIZE_YAW_P		4.5f
+
+ # define ALT_HOLD_P            	1.0f
+
+ # define THROTTLE_RATE_P       	5.0f
+
+ # define THROTTLE_ACCEL_P      	0.50f
+ # define THROTTLE_ACCEL_I      	1.00f
+ # define THROTTLE_ACCEL_D      	0.0f
+ # define THROTTLE_ACCEL_IMAX   	800
+
+ # define LOITER_POS_P                  1.0f
+
+ # define LOITER_RATE_P                 1.0f
+ # define LOITER_RATE_I                 0.5f
+ # define LOITER_RATE_D                 0.0f
+ # define LOITER_RATE_IMAX	        1000        // maximum acceleration from I term build-up in cm/s/s
+
+AC_P p_stabilize_roll(STABILIZE_ROLL_P);
+AC_P p_stabilize_pitch(STABILIZE_PITCH_P);
+AC_P p_stabilize_yaw(STABILIZE_YAW_P);
+AC_P p_alt_hold(ALT_HOLD_P);
+AC_P p_throttle_rate(THROTTLE_RATE_P);
+AC_P p_loiter_pos(LOITER_POS_P);
+
+AC_PID PID_RATE_ROLL(RATE_ROLL_P, RATE_ROLL_I, RATE_ROLL_D, RATE_ROLL_IMAX);
+
+AC_PID PID_RATE_PITCH(RATE_PITCH_P, RATE_PITCH_I, RATE_PITCH_D, RATE_PITCH_IMAX);
+
+AC_PID PID_RATE_YAW(RATE_YAW_P, RATE_YAW_I, RATE_YAW_D, RATE_YAW_IMAX);
+
+AC_PID PID_THROTTLE_ACCEL(THROTTLE_ACCEL_P, THROTTLE_ACCEL_I, THROTTLE_ACCEL_D, THROTTLE_ACCEL_IMAX);	
+
+AC_PID PID_LOITER_RATE_LON(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_RATE_IMAX);
+
+AC_PID PID_LOITER_RATE_LAT(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_RATE_IMAX);
+
 
 float G_Dt = 0.02; //seconds
+
 static float baro_climbrate;
 
 //Documentation of GLobals:
@@ -81,9 +140,6 @@ static union {
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
-// Global parameters are all contained within the 'g' class.
-static Parameters g;
-
 
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
@@ -104,17 +160,17 @@ static AP_Vehicle::MultiCopter aparm;
 
 
 // Inertial Nav declaration
-AP_InertialNav inertialnav(ahrs, baro, gps_glitch, baro_glitch);
+AP_InertialNav inertial_nav(ahrs, baro, gps_glitch, baro_glitch);
 
-//TODO:replace all the g.p_* with PID library stuff
 
-AC_AttitudeControl attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
-                        g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
+
+AC_AttitudeControl attitude_control(ahrs, aparm, motors, p_stabilize_roll, p_stabilize_pitch, p_stabilize_yaw,
+                        PID_RATE_ROLL, PID_RATE_PITCH, PID_RATE_YAW);
 
 
 AC_PosControl pos_control(ahrs, inertial_nav, motors, attitude_control,
-                        g.p_alt_hold, g.p_throttle_rate, g.pid_throttle_accel,
-                        g.p_loiter_pos, g.pid_loiter_rate_lat, g.pid_loiter_rate_lon);
+                        p_alt_hold, p_throttle_rate, PID_THROTTLE_ACCEL,
+                        p_loiter_pos, PID_LOITER_RATE_LAT, PID_LOITER_RATE_LON);
 
 static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control);
 
@@ -167,6 +223,9 @@ void setup()
     rc2.set_angle(4500);
     rc3.set_range(130, 1000);
     rc4.set_angle(4500);
+
+    // Turn on MPU6050 - quad must be kept still as gyros will calibrate
+    ins.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
 
     motors.enable();
     motors.output_min();
