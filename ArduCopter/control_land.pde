@@ -183,10 +183,11 @@ static float get_throttle_land()
     bool sonar_ok = false;
 #endif
     // if we are above 10m and the sonar does not sense anything perform regular alt hold descent
+    //NOTE: LAND_START_ALT = 1000 cm. if height is less than 10 m, go to a slower landing speed
     if (current_loc.alt >= LAND_START_ALT && !(sonar_ok && sonar_alt_health >= SONAR_ALT_HEALTH_MAX)) {
         return pos_control.get_speed_down();
     }else{
-        return -abs(g.land_speed);
+        return -abs(g.land_speed); //LAND_SPEED=50
     }
 }
 

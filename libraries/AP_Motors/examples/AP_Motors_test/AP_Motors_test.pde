@@ -34,20 +34,111 @@
 #include <StorageManager.h>
 #include <AP_Terrain.h>
 #include <AP_NavEKF.h>
-//#include <PID.h>
+
+#include <AP_InertialNav.h>     // Inertial Navigation library
+#include <AC_WPNav.h>           // Waypoint Navigation library
+#include <AC_PosControl.h>      // Position Control library
+#include <AC_AttitudeControl.h> // Attitude Control library
+#include <AP_GPS_Glitch.h>      // GPS glitch protection library
+#include <AP_Baro_Glitch.h>     // Baro glitch protection library
+#include <AP_Buffer.h>          // FIFO buffer library
+#include <AC_PID.h>            // PID library
+
+#define LAND_SPEED    -20          // the descent speed for the final stage of landing in cm/s
+#define LAND_DETECTOR_TRIGGER 50    // number of 50hz iterations with near zero climb rate and low throttle that triggers landing complete.
+#define LAND_DETECTOR_CLIMBRATE_MAX    30  // vehicle climb rate must be between -30 and +30 cm/s
+#define LAND_DETECTOR_BARO_CLIMBRATE_MAX   150  // barometer climb rate must be between -150cm/s ~ +150cm/s
+#define LAND_DETECTOR_DESIRED_CLIMBRATE_MAX    -20    // vehicle desired climb rate must be below -20cm/s
+#define LAND_DETECTOR_ROTATION_MAX    0.50f   // vehicle rotation must be below 0.5 rad/sec (=30deg/sec for) vehicle to consider itself landed
+
+float G_Dt = 0.02; //seconds
+static float baro_climbrate;
+
+//Documentation of GLobals:
+static union {
+    struct {
+//        uint8_t home_is_set         : 1; // 0
+//        uint8_t simple_mode         : 2; // 1,2 // This is the state of simple mode : 0 = disabled ; 1 = SIMPLE ; 2 = SUPERSIMPLE
+//        uint8_t pre_arm_rc_check    : 1; // 3   // true if rc input pre-arm checks have been completed successfully
+//        uint8_t pre_arm_check       : 1; // 4   // true if all pre-arm checks (rc, accel calibration, gps lock) have been performed
+        uint8_t auto_armed          : 1; // 5   // stops auto missions from beginning until throttle is raised
+//        uint8_t logging_started     : 1; // 6   // true if dataflash logging has started
+        uint8_t land_complete       : 1; // 7   // true if we have detected a landing
+//        uint8_t new_radio_frame     : 1; // 8       // Set true if we have new PWM data to act on from the Radio
+//        uint8_t CH7_flag            : 2; // 9,10   // ch7 aux switch : 0 is low or false, 1 is center or true, 2 is high
+//        uint8_t CH8_flag            : 2; // 11,12   // ch8 aux switch : 0 is low or false, 1 is center or true, 2 is high
+//        uint8_t usb_connected       : 1; // 13      // true if APM is powered from USB connection
+//        uint8_t rc_receiver_present : 1; // 14  // true if we have an rc receiver present (i.e. if we've ever received an update
+//        uint8_t compass_mot         : 1; // 15  // true if we are currently performing compassmot calibration
+//        uint8_t motor_test          : 1; // 16  // true if we are currently performing the motors test
+//        uint8_t initialised         : 1; // 17  // true once the init_ardupilot function has completed.  Extended status to GCS is not sent until this completes
+        uint8_t land_complete_maybe : 1; // 18  // true if we may have landed (less strict version of land_complete)
+        uint8_t throttle_zero       : 1; // 19  // true if the throttle stick is at zero, debounced
+    };
+    uint32_t value;
+} ap;
+
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
-RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
+// Global parameters are all contained within the 'g' class.
+static Parameters g;
 
-// uncomment the row below depending upon what frame you are using
-//AP_MotorsTri	motors(rc1, rc2, rc3, rc4);
+
+RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHexa	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsY6	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOcta	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsOctaQuad	motors(rc1, rc2, rc3, rc4);
-//AP_MotorsHeli	motors(rc1, rc2, rc3, rc4);
+
+TODO: ins needs to take in a param. check how i fixed this in henry_1.1
+AP_InertialSensor_MPU6000 ins;
+
+AP_Baro_MS5611 baro(&AP_Baro_MS5611::spi);
+AP_GPS gps;
+GPS_Glitch gps_glitch(gps);
+Baro_Glitch baro_glitch(baro);
+
+AP_Compass_HMC5843 compass;
+
+AP_AHRS_DCM ahrs(ins, baro, gps);
+
+// key aircraft parameters passed to multiple libraries
+static AP_Vehicle::MultiCopter aparm;
+
+
+// Inertial Nav declaration
+AP_InertialNav inertialnav(ahrs, baro, gps_glitch, baro_glitch);
+
+//TODO:replace all the g.p_* with PID library stuff
+
+AC_AttitudeControl attitude_control(ahrs, aparm, motors, g.p_stabilize_roll, g.p_stabilize_pitch, g.p_stabilize_yaw,
+                        g.pid_rate_roll, g.pid_rate_pitch, g.pid_rate_yaw);
+
+
+AC_PosControl pos_control(ahrs, inertial_nav, motors, attitude_control,
+                        g.p_alt_hold, g.p_throttle_rate, g.pid_throttle_accel,
+                        g.p_loiter_pos, g.pid_loiter_rate_lat, g.pid_loiter_rate_lon);
+
+static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control);
+
+// Current location of the copter
+// current_loc uses the baro/gps soloution for altitude rather than gps only.
+static struct   Location current_loc; //AP_Common.h
+
+// The cm/s we are moving up or down based on filtered data - Positive = UP
+static int16_t climb_rate;
+
+// auto_takeoff_start - initialises waypoint controller to implement take-off
+static void auto_takeoff_start(float final_alt); //units are cm
+
+// auto_takeoff_run - takeoff in auto mode
+//      called by auto_run at 100hz or more
+static void auto_takeoff_run();
+
+// auto_land_start - initialises controller to implement a landing
+static void auto_land_start(const Vector3f& destination);
+
+// auto_land_run - lands in auto mode
+//      called by auto_run at 100hz or more
+static void auto_land_run();
 
 
 // setup
@@ -56,7 +147,7 @@ void setup()
     hal.console->println("AP_Motors library test ver 1.0");
 
     // motor initialisation
-    motors.set_update_rate(490);
+    motors.set_update_rate(490); //RC_FAST_SPEED
     // motors.set_frame_orientation(AP_MOTORS_X_FRAME);
     motors.set_frame_orientation(AP_MOTORS_PLUS_FRAME);
     motors.set_min_throttle(130);
@@ -90,7 +181,7 @@ void loop()
     int16_t value;
 
     // display help
-    hal.console->println("Press 't' to run motor orders test, 's' to run stability patch test.  Be careful the motors will spin!");
+    hal.console->println("Press 'm' to run motor orders test, 's' to run stability patch test, 't' to run takeoff_and_land test.  Be careful the motors will spin!");
 
     // wait for user to enter something
     while( !hal.console->available() ) {
@@ -101,12 +192,15 @@ void loop()
     value = hal.console->read();
 
     // test motors
-    if (value == 't' || value == 'T') {
+    if (value == 'm') {
         motor_order_test();
     }
-    if (value == 's' || value == 'S') {
+    if (value == 's') {
 	hal.scheduler->delay(7000);
         stability_test();
+    }
+    if (value == 't') {
+	takeoff_and_land();
     }
 }
 
@@ -222,5 +316,161 @@ void stability_test()
 
     hal.console->println("finished test.");
 }
+
+
+void takeoff_and_land(){
+    auto_takeoff_start(100);
+    
+    //TODO:implement 100 Hz loop, put time limit (10 seconds = 1000 loops)
+    auto_takeoff_run();
+    //exit loop
+    
+    auto_land_start();
+    //TODO: implement 100 Hz loop, keep looping while above start_location
+    auto_land_run();
+    //exit loop
+}
+
+// auto_takeoff_start - initialises waypoint controller to implement take-off
+static void auto_takeoff_start(float final_alt) //units are cm
+{
+    //auto_mode = Auto_TakeOff;
+
+    // initialise wpnav destination
+    Vector3f target_pos = inertial_nav.get_position();
+    target_pos.z = final_alt;
+    wp_nav.set_wp_destination(target_pos); //units are cm
+
+    // initialise yaw
+    //defined in control_auto.pde, takes in param auto_yaw_mode defined in ArduCopter.pde. will need to implement later
+    //set_auto_yaw_mode(AUTO_YAW_HOLD); // pilot controls the heading
+
+
+    // tell motors to do a slow start
+    motors.slow_start(true);
+}
+
+// auto_takeoff_run - takeoff in auto mode
+//      called by auto_run at 100hz or more
+static void auto_takeoff_run()
+{
+   // if not auto armed set throttle to zero and exit immediately
+   //TODO: need flag
+   if(!ap.auto_armed) {   //ap is a struct in ArduCopter.pde which uses update_auto_armed() (system.pde) to update status of auto_armed flag 
+
+       // initialise wpnav targets
+       wp_nav.shift_wp_origin_to_current_pos();
+       // reset attitude control targets
+       attitude_control.relax_bf_rate_controller();
+       attitude_control.set_yaw_target_to_current_heading();
+       attitude_control.set_throttle_out(0, false);
+       // tell motors to do a slow start
+       motors.slow_start(true);
+       return;
+   }
+
+    // process pilot's yaw input
+    float target_yaw_rate = 0;
+    //if (!failsafe.radio) {   //failsafe is a struct in ArduCopter.pde
+    //    // get pilot's desired yaw rate
+    //    target_yaw_rate = get_pilot_desired_yaw_rate(g.rc_4.control_in);
+    //}
+
+    // run waypoint controller
+    wp_nav.update_wpnav();
+
+    // call z-axis position controller (wpnav should have already updated it's alt target)
+    pos_control.update_z_controller();
+
+    // roll & pitch from waypoint controller, yaw rate from pilot
+    attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
+}
+
+// auto_land_start - initialises controller to implement a landing
+static void auto_land_start()
+{
+    // set target to stopping point
+    Vector3f stopping_point;
+    wp_nav.get_loiter_stopping_point_xy(stopping_point); //param is address. add & ?
+
+    // call location specific land start function
+    auto_land_start(stopping_point);
+}
+
+// auto_land_start - initialises controller to implement a landing
+static void auto_land_start(const Vector3f& destination)
+{
+    //auto_mode = Auto_Land;
+
+    // initialise loiter target destination
+    wp_nav.init_loiter_target(destination);
+
+    // initialise altitude target to stopping point
+    pos_control.set_target_to_stopping_point_z();
+
+    // initialise yaw
+    //set_auto_yaw_mode(AUTO_YAW_HOLD);
+}
+
+// auto_land_run - lands in auto mode
+//      called by auto_run at 100hz or more
+static void auto_land_run()
+{
+    int16_t roll_control = 0, pitch_control = 0;
+    float target_yaw_rate = 0;
+
+   // if not auto armed set throttle to zero and exit immediately
+   if(!ap.auto_armed || ap.land_complete){ //in land_detector.pde
+       attitude_control.relax_bf_rate_controller();
+       attitude_control.set_yaw_target_to_current_heading();
+       attitude_control.set_throttle_out(0, false);
+       // set target to current position
+       wp_nav.init_loiter_target();
+       return;
+    }
+
+   // // relax loiter targets if we might be landed
+   // if (land_complete_maybe()) { //TODO. defined in land_detector.pde
+   //     wp_nav.loiter_soften_for_landing();
+   // }
+
+    //// process pilot's input
+    //if (!failsafe.radio) { //TODO. if still receiving input
+    //    if (g.land_repositioning) {
+    //        // apply SIMPLE mode transform to pilot inputs
+    //        update_simple_mode(); //TODO
+
+    //        // process pilot's roll and pitch input
+    //        roll_control = g.rc_1.control_in; //TODO
+    //        pitch_control = g.rc_2.control_in; //TODO
+    //    }
+
+    //    // get pilot's desired yaw rate
+    //    target_yaw_rate = get_pilot_desired_yaw_rate(g.rc_4.control_in); //TODO
+    //}
+
+    //added by henry
+    roll_control = 0;
+    pitch_control = 0;
+    target_yaw_rate = 0;
+
+    // process roll, pitch inputs
+    wp_nav.set_pilot_desired_acceleration(roll_control, pitch_control);
+
+    // run loiter controller
+    wp_nav.update_loiter();
+
+    // call z-axis position controller
+    //sets new height target every G_Dt seconds since G_Dt is expected time between calls. if in 100Hz loop, shouldn't G_Dt=.01?
+    //pos_control.set_alt_target_from_climb_rate(get_throttle_land(), G_Dt, true); //TODO: get_throttle_land(), G_Dt
+    //NOTE:get_throttle_land determines what landing speed. if less than 10 m high, sets as -50 cm/s
+    pos_control.set_alt_target_from_climb_rate(LAND_SPEED, G_Dt, true);
+
+    pos_control.update_z_controller();
+
+    // roll & pitch from waypoint controller, yaw rate from pilot
+    attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
+}
+
 
 AP_HAL_MAIN();

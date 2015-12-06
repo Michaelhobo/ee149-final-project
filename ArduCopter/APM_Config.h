@@ -20,13 +20,13 @@
  */
 
 // uncomment the lines below to save on flash space if compiling for the APM using Arduino IDE.  Top items save the most flash space
-//#define LOGGING_ENABLED       DISABLED            // disable dataflash logging to save 11K of flash space
-//#define MOUNT                 DISABLED            // disable the camera gimbal to save 8K of flash space
-//#define AUTOTUNE_ENABLED      DISABLED            // disable the auto tune functionality to save 7k of flash
-//#define AC_FENCE              DISABLED            // disable fence to save 2k of flash
-//#define CAMERA                DISABLED            // disable camera trigger to save 1k of flash
-//#define CONFIG_SONAR          DISABLED            // disable sonar to save 1k of flash
-//#define POSHOLD_ENABLED       DISABLED            // disable PosHold flight mode to save 4.5k of flash
+#define LOGGING_ENABLED       DISABLED            // disable dataflash logging to save 11K of flash space
+#define MOUNT                 DISABLED            // disable the camera gimbal to save 8K of flash space
+#define AUTOTUNE_ENABLED      DISABLED            // disable the auto tune functionality to save 7k of flash
+#define AC_FENCE              DISABLED            // disable fence to save 2k of flash
+#define CAMERA                DISABLED            // disable camera trigger to save 1k of flash
+#define CONFIG_SONAR          DISABLED            // disable sonar to save 1k of flash
+#define POSHOLD_ENABLED       DISABLED            // disable PosHold flight mode to save 4.5k of flash
 
 // features below are disabled by default on APM (but enabled on Pixhawk)
 //#define AC_RALLY              ENABLED             // disable rally points to save 2k of flash, and also frees rally point EEPROM for more mission commands
@@ -41,7 +41,7 @@
 
 // other settings
 //#define THROTTLE_IN_DEADBAND   100                // redefine size of throttle deadband in pwm (0 ~ 1000)
-//#define LAND_REQUIRE_MIN_THROTTLE_TO_DISARM   DISABLED    // when set to DISABLED vehicle will disarm after landing (in LAND mode or RTL) even if pilot has not put throttle to zero
+#define LAND_REQUIRE_MIN_THROTTLE_TO_DISARM   DISABLED    // when set to DISABLED vehicle will disarm after landing (in LAND mode or RTL) even if pilot has not put throttle to zero
 
 //#define HIL_MODE              HIL_MODE_SENSORS    // build for hardware-in-the-loop simulation
 
