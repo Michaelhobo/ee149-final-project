@@ -87,12 +87,18 @@
 
 // Auto Pilot modes
 // ----------------
+#define ACRO -1                          // rate control
+#define ALT_HOLD -2                      // AUTO control
+#define AUTO -3                          // AUTO control
+#define LOITER -5                        // Hold a single location
+
+//FIREDRONE states
 #define STABILIZE 0                     // hold level position
-#define ACRO 1                          // rate control
-#define ALT_HOLD 2                      // AUTO control
-#define AUTO 3                          // AUTO control
+#define TAKEOFF 1
+#define FLY 2
+#define OBSTACLE 3
 #define GUIDED 4                        // AUTO control
-#define LOITER 5                        // Hold a single location
+#define FIRE 5
 #define RTL 6                           // AUTO control
 #define CIRCLE 7                        // AUTO control
 #define LAND 9                          // AUTO control

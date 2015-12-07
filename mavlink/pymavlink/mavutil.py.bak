@@ -8,7 +8,6 @@ Released under GNU GPL version 3 or later
 
 import socket, math, struct, time, os, fnmatch, array, sys, errno
 import select
-import pdb
 
 # adding these extra imports allows pymavlink to be used directly with pyinstaller
 # without having complex spec files. To allow for installs that don't have ardupilotmega
@@ -498,7 +497,6 @@ class mavfile(object):
             map = mode_mapping_rover
         if mav_type == mavlink.MAV_TYPE_ANTENNA_TRACKER:
             map = mode_mapping_tracker
-        map = mode_mapping_firedrone
         if map is None:
             return None
         inv_map = dict((a, b) for (b, a) in list(map.items()))
@@ -1292,17 +1290,6 @@ mode_mapping_apm = {
     15 : 'GUIDED',
     16 : 'INITIALISING'
     }
-mode_mapping_firedrone = {
-    0 : 'STABILIZE',
-    1 : 'TAKEOFF',
-    2 : 'FLY',
-    3 : 'OBSTACLE',
-    4 : 'GUIDED',
-    5 : 'FIRE',
-    6 : 'RTL',
-    7 : 'CIRCLE',
-    9 : 'LAND'
-}
 mode_mapping_acm = {
     0 : 'STABILIZE',
     1 : 'ACRO',
@@ -1356,15 +1343,13 @@ def mode_mapping_byname(mav_type):
                     mavlink.MAV_TYPE_HEXAROTOR,
                     mavlink.MAV_TYPE_OCTOROTOR,
                     mavlink.MAV_TYPE_TRICOPTER]:
-        #map = mode_mapping_acm
-        map = mode_mapping_firedrone
+        map = mode_mapping_acm
     if mav_type == mavlink.MAV_TYPE_FIXED_WING:
         map = mode_mapping_apm
     if mav_type == mavlink.MAV_TYPE_GROUND_ROVER:
         map = mode_mapping_rover
     if mav_type == mavlink.MAV_TYPE_ANTENNA_TRACKER:
         map = mode_mapping_tracker
-    map = mode_mapping_firedrone
     if map is None:
         return None
     inv_map = dict((a, b) for (b, a) in map.items())
@@ -1385,7 +1370,6 @@ def mode_mapping_bynumber(mav_type):
         map = mode_mapping_rover
     if mav_type == mavlink.MAV_TYPE_ANTENNA_TRACKER:
         map = mode_mapping_tracker
-    map = mode_mapping_firedrone
     if map is None:
         return None
     return map
