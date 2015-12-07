@@ -509,7 +509,8 @@ bool AP_Mission::mavlink_to_mission_cmd(const mavlink_mission_item_t& packet, AP
     //FIREDRONE
     case MAV_CMD_NAV_DIR:
         copy_location = true;
-        cmd.p1 = packet.param1
+        cmd.p1 = packet.param1;
+        break;
 
 #ifdef MAV_CMD_NAV_GUIDED
     case MAV_CMD_NAV_GUIDED:                     // MAV ID: 90
@@ -771,7 +772,7 @@ bool AP_Mission::mission_cmd_to_mavlink(const AP_Mission::Mission_Command& cmd, 
     //FIREDRONE
     case MAV_CMD_NAV_DIR:
         copy_location = true;
-
+        break;
 #ifdef MAV_CMD_NAV_GUIDED
     case MAV_CMD_NAV_GUIDED:                     // MAV ID: 90
         packet.param1 = cmd.p1;                         // max time in seconds the external controller will be allowed to control the vehicle

@@ -181,7 +181,8 @@ static void init_ardupilot()
 
     // identify ourselves correctly with the ground station
     mavlink_system.sysid = g.sysid_this_mav;
-    mavlink_system.type = 2; //MAV_QUADROTOR;
+    //FIREDRONE
+    //mavlink_system.type = 2; //MAV_QUADROTOR; //Apparently, this breaks things
 
 #if LOGGING_ENABLED == ENABLED
     DataFlash.Init(log_structure, sizeof(log_structure)/sizeof(log_structure[0]));
