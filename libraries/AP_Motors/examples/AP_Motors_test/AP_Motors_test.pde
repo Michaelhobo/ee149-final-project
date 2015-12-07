@@ -43,15 +43,16 @@
 #include <AP_Baro_Glitch.h>     // Baro glitch protection library
 #include <AP_Buffer.h>          // FIFO buffer library
 #include <AC_PID.h>            // PID library
+#include <AP_Scheduler.h>
 
-
-#define LAND_SPEED    -20          // the descent speed for the final stage of landing in cm/s
-#define LAND_DETECTOR_TRIGGER 50    // number of 50hz iterations with near zero climb rate and low throttle that triggers landing complete.
-#define LAND_DETECTOR_CLIMBRATE_MAX    30  // vehicle climb rate must be between -30 and +30 cm/s
-#define LAND_DETECTOR_BARO_CLIMBRATE_MAX   150  // barometer climb rate must be between -150cm/s ~ +150cm/s
-#define LAND_DETECTOR_DESIRED_CLIMBRATE_MAX    -20    // vehicle desired climb rate must be below -20cm/s
-#define LAND_DETECTOR_ROTATION_MAX    0.50f   // vehicle rotation must be below 0.5 rad/sec (=30deg/sec for) vehicle to consider itself landed
-#define MAIN_LOOP_SECONDS 0.01
+# define LAND_SPEED    -20          // the descent speed for the final stage of landing in cm/s
+# define LAND_DETECTOR_TRIGGER 50    // number of 50hz iterations with near zero climb rate and low throttle that triggers landing complete.
+# define LAND_DETECTOR_CLIMBRATE_MAX    30  // vehicle climb rate must be between -30 and +30 cm/s
+# define LAND_DETECTOR_BARO_CLIMBRATE_MAX   150  // barometer climb rate must be between -150cm/s ~ +150cm/s
+# define LAND_DETECTOR_DESIRED_CLIMBRATE_MAX    -20    // vehicle desired climb rate must be below -20cm/s
+# define LAND_DETECTOR_ROTATION_MAX    0.50f   // vehicle rotation must be below 0.5 rad/sec (=30deg/sec for) vehicle to consider itself landed
+# define MAIN_LOOP_SECONDS 0.01
+# define MAIN_LOOP_MICROS  10000
 
 
  # define RATE_ROLL_P                   0.150f
@@ -141,6 +142,9 @@ static union {
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
 
+// main loop scheduler
+static AP_Scheduler scheduler;
+
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
 AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
 
@@ -180,6 +184,14 @@ static struct   Location current_loc; //AP_Common.h
 
 // The cm/s we are moving up or down based on filtered data - Positive = UP
 static int16_t climb_rate;
+static int32_t baro_alt;            // barometer altitude in cm above home
+
+// Time in microseconds of main control loop
+static uint32_t fast_loopTimer;
+uint32_t timer;
+uint32_t initial_time;
+
+static int16_t start = 1; //used to switch from takeoff to land
 
 // auto_takeoff_start - initialises waypoint controller to implement take-off
 static void auto_takeoff_start(float final_alt); //units are cm
@@ -188,12 +200,51 @@ static void auto_takeoff_start(float final_alt); //units are cm
 //      called by auto_run at 100hz or more
 static void auto_takeoff_run();
 
+static void auto_land_start();
+
 // auto_land_start - initialises controller to implement a landing
 static void auto_land_start(const Vector3f& destination);
 
 // auto_land_run - lands in auto mode
 //      called by auto_run at 100hz or more
 static void auto_land_run();
+
+void init_firedrone();
+
+
+ /*
+  scheduler table - all regular tasks apart from the fast_loop()
+  should be listed here, along with how often they should be called
+  (in 10ms units) and the maximum time they are expected to take (in
+  microseconds)
+  1    = 100hz
+  2    = 50hz
+  4    = 25hz
+  10   = 10hz
+  20   = 5hz
+  33   = 3hz
+  50   = 2hz
+  100  = 1hz
+  1000 = 0.1hz
+ */
+static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
+    { throttle_loop,         2,     450 },
+//  { update_GPS,            2,     900 },
+    { read_barometer,       10,    1000 },
+    { run_nav_updates,       4,     800 },
+//  { update_thr_cruise,     1,      50 },
+//  { compass_accumulate,    2,     420 },
+    { barometer_accumulate,  2,     250 },
+//  { update_notify,         2,     100 },
+    { crash_check,          10,      20 },
+//  { gcs_check_input,       2,     550 },
+//  { gcs_send_heartbeat,  100,     150 },
+//  { gcs_send_deferred,     2,     720 },
+//  { gcs_data_stream_send,  2,     950 },
+//  { ten_hz_logging_loop,  10,     300 },
+//  { fifty_hz_logging_loop, 2,     220 },
+//  { read_receiver_rssi,   10,      50 },
+};
 
 
 // setup
@@ -224,8 +275,11 @@ void setup()
     rc3.set_range(130, 1000);
     rc4.set_angle(4500);
 
-    // Turn on MPU6050 - quad must be kept still as gyros will calibrate
-    ins.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
+    init_firedrone();
+
+    // initialise the main loop scheduler
+    scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]));
+
 
     motors.enable();
     motors.output_min();
@@ -258,7 +312,29 @@ void loop()
         stability_test();
     }
     if (value == 't') {
+        hal.scheduler->delay(7000);
+	// wait for an INS sample
+        ins.wait_for_sample();
+        uint32_t timer = hal.scheduler->micros();
+	
+	uint32_t initial_time = hal.scheduler->micros();
+	
+	// used by PI Loops
+        G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
+        fast_loopTimer          = timer;
+
 	takeoff_and_land();
+       
+	// tell the scheduler one tick has passed
+        scheduler.tick();
+
+	// run all the tasks that are due to run. Note that we only
+    	// have to call this once per loop, as the tasks are scheduled
+    	// in multiples of the main loop tick. So if they don't run on
+    	// the first call to the scheduler they won't run on a later
+    	// call until scheduler.tick() is called again
+    	uint32_t time_available = (timer + MAIN_LOOP_MICROS) - hal.scheduler->micros();
+    	scheduler.run(time_available);
     }
 }
 
@@ -375,18 +451,113 @@ void stability_test()
     hal.console->println("finished test.");
 }
 
+// throttle_loop - should be run at 50 hz
+// ---------------------------
+static void throttle_loop()
+{
+    // get altitude and climb rate from inertial lib
+    read_inertial_altitude();
+
+    // check if we've landed
+    update_land_detector();
+
+    // check auto_armed status
+    update_auto_armed();
+
+}
+
+// return barometric altitude in centimeters
+static void read_barometer(void)
+{
+    baro.read();
+    //if (should_log(MASK_LOG_IMU)) {
+    //    Log_Write_Baro();
+    //}
+    baro_alt = baro.get_altitude() * 100.0f;
+    baro_climbrate = baro.get_climb_rate() * 100.0f;
+
+    // run glitch protection and update AP_Notify if home has been initialised
+    baro_glitch.check_alt();
+    bool report_baro_glitch = (baro_glitch.glitching());//&& !ap.usb_connected && hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED);
+    //if (AP_Notify::flags.baro_glitching != report_baro_glitch) {
+    //    if (baro_glitch.glitching()) {
+    //        Log_Write_Error(ERROR_SUBSYSTEM_BARO, ERROR_CODE_BARO_GLITCH);
+    //    } else {
+    //        Log_Write_Error(ERROR_SUBSYSTEM_BARO, ERROR_CODE_ERROR_RESOLVED);
+    //    }
+    //    AP_Notify::flags.baro_glitching = report_baro_glitch;
+    //}
+}
+
+/*
+  try to accumulate a baro reading
+ */
+static void barometer_accumulate(void)
+{
+    baro.accumulate();
+}
+
+
+void init_firedrone(){
+    // standard gps running. Note that we need a 256 byte buffer for some
+    // GPS types (eg. UBLOX)
+    hal.uartB->begin(38400, 256, 16);
+
+    /*
+      run the timer a bit slower on APM2 to reduce the interrupt load
+      on the CPU
+    */
+    hal.scheduler->set_timer_speed(500);
+
+    baro.init();
+    
+    // Do GPS init
+    //gps.init(&DataFlash); DataFlash associated with Logging. we're not implementing logging yet. may be a source of error
+
+    // initialise attitude and position controllers
+    attitude_control.set_dt(MAIN_LOOP_SECONDS);
+    pos_control.set_dt(MAIN_LOOP_SECONDS);
+    
+    // initialise inertial nav
+    inertial_nav.init();
+
+    // read Baro pressure at ground
+    baro.calibrate();
+
+     // initialise ahrs (may push imu calibration into the mpu6000 if using that device).
+    ahrs.init();
+    ahrs.set_vehicle_class(AHRS_VEHICLE_COPTER);
+
+    // Turn on MPU6050 - quad must be kept still as gyros will calibrate
+    ins.init(AP_InertialSensor::COLD_START, AP_InertialSensor::RATE_100HZ);
+
+    // reset ahrs gyro bias
+    ahrs.reset_gyro_drift();
+
+    // setup fast AHRS gains to get right attitude
+    ahrs.set_fast_gains(true);
+
+    // set landed flag
+    set_land_complete(true);
+ 
+}
 
 void takeoff_and_land(){
-    auto_takeoff_start(100);
     
-    //TODO:implement 100 Hz loop, put time limit (10 seconds = 1000 loops)
-    auto_takeoff_run();
-    //exit loop
-    
-    auto_land_start();
-    //TODO: implement 100 Hz loop, keep looping while above start_location
-    auto_land_run();
-    //exit loop
+    if(start == 1){
+        auto_takeoff_start(100);
+	start++;
+    }
+    else if((timer-initial_time)/1000000 < 10){ //takeoff for ten seconds
+    	auto_takeoff_run();
+    }
+    else if(start == 2){
+    	auto_land_start();
+	start++;
+    }
+    else{
+	auto_land_run();
+    }
 }
 
 // auto_takeoff_start - initialises waypoint controller to implement take-off

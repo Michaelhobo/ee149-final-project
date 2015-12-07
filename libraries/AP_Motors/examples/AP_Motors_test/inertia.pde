@@ -8,7 +8,7 @@ static void read_inertia()
 }
 
 // read_inertial_altitude - pull altitude and climb rate from inertial nav library
-static void read_inertial_altitude()
+void read_inertial_altitude()
 {
     // with inertial nav we can update the altitude and climb rate at 50hz
     current_loc.alt = inertial_nav.get_altitude();
