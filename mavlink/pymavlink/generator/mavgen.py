@@ -17,7 +17,7 @@ schemaFile = os.path.join(os.path.dirname(os.path.realpath(__file__)), "mavschem
 DEFAULT_WIRE_PROTOCOL = mavparse.PROTOCOL_1_0
 DEFAULT_LANGUAGE = 'Python'
 DEFAULT_ERROR_LIMIT = 200
-DEFAULT_VALIDATE = True
+DEFAULT_VALIDATE = False
 
 # List the supported languages. This is done globally because it's used by the GUI wrapper too
 supportedLanguages = ["C", "CS", "JavaScript", "Python", "WLua", "ObjC", "Swift", "Java"]
