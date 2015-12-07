@@ -364,15 +364,12 @@ void stability_test()
         //  roll,   pitch,  yaw,    throttle
         {   0,      0,      0,      0},
         {   0,      0,      0,      200},
-	{   0,      0,      0,      400},
-        {   0,      0,      0,      500},
-        {   0,      0,      0,      500},
-        {   0,      0,      0,      500},
-        {   0,      0,      0,      500},
-	{   0,      0,      0,      400},
 	{   0,      0,      0,      300},
-	{   0,      0,      0,      200},
-	{   0,	    0, 	    0, 	    100},
+        {   0,      0,      0,      400},
+        {   0,      0,      0,      400},
+        {   0,      0,      0,      300},
+        {   0,      0,      0,      200},
+	{   0,      0,      0,      100},
       //  {   0,      0,      0,      300},
       //  {   4500,   0,      0,      300},
       //  {   -4500,  0,      0,      300},
@@ -403,14 +400,15 @@ void stability_test()
       //  {5000,      0,   3000,      1000},
       //  {5000,      0,   4500,      1000}
     };
-    //uint32_t testing_array_rows = 32;
-    uint32_t testing_array_rows = 7;
+    uint32_t testing_array_rows = 8;
  
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
     // arm motors
     motors.armed(true);
-
+    
+    uint32_t start_time;
+    uint32_t current_time;
     // run stability test
     for (int16_t i=0; i < testing_array_rows; i++) {
         roll_in = testing_array[i][0];
@@ -422,23 +420,35 @@ void stability_test()
         motors.set_yaw(yaw_in);
         motors.set_throttle(throttle_in);
         motors.output();
-        // calc average output
-        throttle_radio_in = rc3.radio_out;
-        avg_out = ((hal.rcout->read(0) + hal.rcout->read(1) + hal.rcout->read(2) + hal.rcout->read(3))/4);
 
-        // display input and output
-        hal.console->printf_P(PSTR("R:%5d \tP:%5d \tY:%5d \tT:%5d\tMOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t ThrIn/AvgOut:%5d/%5d\n"),
-                (int)roll_in,
-                (int)pitch_in,
-                (int)yaw_in,
-                (int)throttle_in,
-                (int)hal.rcout->read(0),
-                (int)hal.rcout->read(1),
-                (int)hal.rcout->read(2),
-                (int)hal.rcout->read(3),
-                (int)throttle_radio_in,
-                (int)avg_out);
-    hal.scheduler->delay(2000);
+	start_time = hal.scheduler->micros();
+        current_time = hal.scheduler->micros();
+	while((current_time - start_time)/1000000 < 3){ //loop for three seconds
+        	
+		attitude_control.angle_ef_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true); //calculates error
+		attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+		motors.output();
+			
+		// calc average output
+        	throttle_radio_in = rc3.radio_out;
+        	avg_out = ((hal.rcout->read(0) + hal.rcout->read(1) + hal.rcout->read(2) + hal.rcout->read(3))/4);
+
+        	// display input and output
+        	hal.console->printf_P(PSTR("R:%5d \tP:%5d \tY:%5d \tT:%5d\tMOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t ThrIn/AvgOut:%5d/%5d\n"),
+                	(int)roll_in,
+                	(int)pitch_in,
+               		(int)yaw_in,
+                	(int)throttle_in,
+                	(int)hal.rcout->read(0),
+                	(int)hal.rcout->read(1),
+                	(int)hal.rcout->read(2),
+                	(int)hal.rcout->read(3),
+                	(int)throttle_radio_in,
+                	(int)avg_out);
+        	hal.scheduler->delay(2000);
+		
+		current_time = hal.scheduler->micros();
+	}
     }
     // set all inputs to motor library to zero and disarm motors
     motors.set_pitch(0);
