@@ -44,6 +44,12 @@
 #include <AP_Buffer.h>          // FIFO buffer library
 #include <AC_PID.h>            // PID library
 #include <AP_Scheduler.h>
+#include "i2cmaster.h"
+
+static float MLX_90614_tempFactor = 0.02; // 0.02 degrees per LSB (measurement resolution of the MLX90614)
+
+static float MLX_90614_tempData = 0x0000; // zero out the data
+
 
 # define LAND_SPEED    -20          // the descent speed for the final stage of landing in cm/s
 # define LAND_DETECTOR_TRIGGER 50    // number of 50hz iterations with near zero climb rate and low throttle that triggers landing complete.
@@ -216,8 +222,8 @@ static void auto_land_start(const Vector3f& destination);
 static void auto_land_run();
 
 void init_firedrone();
-
-
+static void read_MLX90614();
+void init_MLX90614();
  /*
   scheduler table - all regular tasks apart from the fast_loop()
   should be listed here, along with how often they should be called
@@ -250,6 +256,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
 //  { ten_hz_logging_loop,  10,     300 },
 //  { fifty_hz_logging_loop, 2,     220 },
 //  { read_receiver_rssi,   10,      50 },
+    { read_MLX90614,	     2,     500 },
 };
 
 
@@ -282,7 +289,7 @@ void setup()
     rc4.set_angle(4500);
 
     init_firedrone();
-
+    init_MLX90614();
     // initialise the main loop scheduler
     scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]));
 
@@ -523,6 +530,10 @@ static void barometer_accumulate(void)
     //hal.console->println("ran barometer_accumulate");
 }
 
+void init_MLX90614(){
+	i2c_init(); //Initialise the i2c bus
+	PORTC = (1 << PORTC4) | (1 << PORTC5);//enable pullups
+}
 
 void init_firedrone(){
     // standard gps running. Note that we need a 256 byte buffer for some
@@ -536,14 +547,14 @@ void init_firedrone(){
     hal.scheduler->set_timer_speed(500);
 
     baro.init();
-    
+
     // Do GPS init
     //gps.init(&DataFlash); DataFlash associated with Logging. we're not implementing logging yet. may be a source of error
 
     // initialise attitude and position controllers
     attitude_control.set_dt(MAIN_LOOP_SECONDS);
     pos_control.set_dt(MAIN_LOOP_SECONDS);
-    
+
     // initialise inertial nav
     inertial_nav.init();
 
@@ -779,4 +790,30 @@ static void update_thr_cruise()
     }
 }
 
+
+
+static void read_MLX90614() {
+
+    static int32_t dev = 0x5A<<1;
+    static int32_t data_low = 0;
+    static int32_t data_high = 0;
+    static int32_t pec = 0;
+
+    i2c_start_wait(dev+I2C_WRITE);
+    i2c_write(0x07);
+
+    // read
+
+    i2c_rep_start(dev+I2C_READ);
+    data_low = i2c_readAck(); //Read 1 byte and then send ack
+    data_high = i2c_readAck(); //Read 1 byte and then send ack
+    pec = i2c_readNak();
+    i2c_stop();
+
+    MLX_90614_tempData = (double)(((data_high & 0x007F) << 8) + data_low);
+    MLX_90614_tempData = (MLX_90614_tempData * MLX_90614_tempFactor)-0.01;
+
+    hal.console->printf_P(PSTR("%d Kelvins \n"), (int16_t)MLX_90614_tempData); // no need to print but for val checking
+
+}
 AP_HAL_MAIN();
