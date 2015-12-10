@@ -143,6 +143,11 @@ void AP_MotorsCoax::output_min()
     hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[AP_MOTORS_MOT_2]), _servo2.radio_trim);
     hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[AP_MOTORS_MOT_3]), _rc_throttle.radio_min);
     hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[AP_MOTORS_MOT_4]), _rc_throttle.radio_min);
+    
+    //added by henry
+    hal.console->printf("_servo1.radio_trim = %f", _servo1.radio_trim);
+    hal.console->printf("_servo2.radio_trim = %f", _servo2.radio_trim);
+    hal.console->printf("_rc_throttle.radio_min = %f", _rc_throttle.radio_min);
 }
 
 // output_armed - sends commands to the motors
