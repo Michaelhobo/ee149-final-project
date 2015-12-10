@@ -188,8 +188,8 @@ uint16_t throttle_min = 130; //originally hardcoded into the file when we got it
 static struct   Location current_loc; //AP_Common.h
 
 // The cm/s we are moving up or down based on filtered data - Positive = UP
-static int16_t climb_rate;
-static int32_t baro_alt;            // barometer altitude in cm above home
+static float climb_rate;
+static float baro_alt;            // barometer altitude in cm above home
 
 // Time in microseconds of main control loop
 static uint32_t fast_loopTimer;
@@ -479,6 +479,10 @@ void stability_test()
 // ---------------------------
 static void throttle_loop()
 {
+    //passing in the barometer measured altitude to the inertal navigation since read_inertial_altitude gets its 
+    //current altitude from inertial_nav.get_altitude, which only asks for an altitude that is set by the set_altitude function
+    inertial_nav.set_altitude(baro_alt);
+    inertial_nav.set_velocity_z(baro_climbrate);
     // get altitude and climb rate from inertial lib
     read_inertial_altitude();
 
@@ -620,6 +624,7 @@ static void auto_takeoff_start(float final_alt) //units are cm
     // initialise wpnav destination
     Vector3f target_pos = inertial_nav.get_position();
     target_pos.z = final_alt;
+    hal.console->printf_P(PSTR("target_pos.x = %f \t target_pos.y = %f \t target_pos.z = %f \n"), (float)target_pos.x, (float)target_pos.y, (float)target_pos.z);
     wp_nav.set_wp_destination(target_pos); //units are cm
 
     // initialise yaw
