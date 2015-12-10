@@ -14,4 +14,5 @@ void read_inertial_altitude()
     current_loc.alt = inertial_nav.get_altitude();
     current_loc.flags.relative_alt = true;
     climb_rate = inertial_nav.get_velocity_z();
+    hal.console->printf_P(PSTR("inertia_alt = %d \t inertia_climb_rate = %d"), (int)current_loc.alt, (int)climb_rate);
 }

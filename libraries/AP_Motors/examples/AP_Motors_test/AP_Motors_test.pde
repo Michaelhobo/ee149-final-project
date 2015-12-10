@@ -52,7 +52,7 @@
 # define LAND_DETECTOR_DESIRED_CLIMBRATE_MAX    -20    // vehicle desired climb rate must be below -20cm/s
 # define LAND_DETECTOR_ROTATION_MAX    0.50f   // vehicle rotation must be below 0.5 rad/sec (=30deg/sec for) vehicle to consider itself landed
 # define MAIN_LOOP_SECONDS 0.01
-# define MAIN_LOOP_MICROS  10000
+# define MAIN_LOOP_MICROS  10000 //originally 10000
 
 
  # define RATE_ROLL_P                   0.150f
@@ -178,6 +178,11 @@ AC_PosControl pos_control(ahrs, inertial_nav, motors, attitude_control,
 
 static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control);
 
+uint16_t throttle_avg = 0; //initialization
+uint16_t throttle_cruise = 450; //just as a starting value like in Newton's approximation for finding zeros
+uint16_t throttle_min = 130; //originally hardcoded into the file when we got it
+
+
 // Current location of the copter
 // current_loc uses the baro/gps soloution for altitude rather than gps only.
 static struct   Location current_loc; //AP_Common.h
@@ -189,7 +194,8 @@ static int32_t baro_alt;            // barometer altitude in cm above home
 // Time in microseconds of main control loop
 static uint32_t fast_loopTimer;
 uint32_t timer;
-uint32_t initial_time;
+uint32_t start_time;
+uint32_t current_time;
 
 static int16_t start = 1; //used to switch from takeoff to land
 
@@ -232,7 +238,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
 //  { update_GPS,            2,     900 },
     { read_barometer,       10,    1000 },
     { run_nav_updates,       4,     800 },
-//  { update_thr_cruise,     1,      50 },
+    { update_thr_cruise,     1,      50 }, //sets throttle_hover which is needed by update_z_controller
 //  { compass_accumulate,    2,     420 },
     { barometer_accumulate,  2,     250 },
 //  { update_notify,         2,     100 },
@@ -256,7 +262,7 @@ void setup()
     motors.set_update_rate(490); //RC_FAST_SPEED
     // motors.set_frame_orientation(AP_MOTORS_X_FRAME);
     motors.set_frame_orientation(AP_MOTORS_PLUS_FRAME);
-    motors.set_min_throttle(130);
+    motors.set_min_throttle(throttle_min); //throttle_min = 130
     motors.set_mid_throttle(500);
     motors.Init();      // initialise motors
 
@@ -312,33 +318,44 @@ void loop()
         stability_test();
     }
     if (value == 't') {
-        hal.scheduler->delay(7000);
-	// wait for an INS sample
-        ins.wait_for_sample();
-        uint32_t timer = hal.scheduler->micros();
-	
-	uint32_t initial_time = hal.scheduler->micros();
-	
-	// used by PI Loops
-        G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
-        fast_loopTimer          = timer;
+  	hal.scheduler->delay(7000);
 
-	takeoff_and_land();
-       
-	// tell the scheduler one tick has passed
-        scheduler.tick();
+	start_time = hal.scheduler->micros();
+        current_time = hal.scheduler->micros();
+        while((current_time - start_time)/1000000 < 20){ //loop for 20 seconds
 
-	// run all the tasks that are due to run. Note that we only
-    	// have to call this once per loop, as the tasks are scheduled
-    	// in multiples of the main loop tick. So if they don't run on
-    	// the first call to the scheduler they won't run on a later
-    	// call until scheduler.tick() is called again
-    	uint32_t time_available = (timer + MAIN_LOOP_MICROS) - hal.scheduler->micros();
-    	scheduler.run(time_available);
+		// wait for an INS sample
+       		ins.wait_for_sample();
+		//hal.console->println("got ins sample");
+
+        	timer = hal.scheduler->micros();	
+	
+		// used by PI Loops
+        	G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
+        	fast_loopTimer          = timer;
+    
+		//hal.console->println("about to run takeoff_and_land");
+		takeoff_and_land();
+		
+		// tell the scheduler one tick has passed
+        	scheduler.tick();
+	
+		// run all the tasks that are due to run. Note that we only
+    		// have to call this once per loop, as the tasks are scheduled
+    		// in multiples of the main loop tick. So if they don't run on
+    		// the first call to the scheduler they won't run on a later
+    		// call until scheduler.tick() is called again
+    		uint32_t time_available = (timer + MAIN_LOOP_MICROS) - hal.scheduler->micros();
+    		scheduler.run(time_available);
+		
+		//hal.console->println("ran scheduler");
+		current_time = hal.scheduler->micros();
+    	}
+	motors.output_min();
     }
 }
 
-// stability_test
+// motor_test
 void motor_order_test()
 {
     hal.console->println("testing motor order");
@@ -363,13 +380,10 @@ void stability_test()
     int16_t testing_array[][4] = {
         //  roll,   pitch,  yaw,    throttle
         {   0,      0,      0,      0},
+        {   0,      0,      0,      100},
         {   0,      0,      0,      200},
-	{   0,      0,      0,      300},
-        {   0,      0,      0,      400},
-        {   0,      0,      0,      400},
-        {   0,      0,      0,      300},
         {   0,      0,      0,      200},
-	{   0,      0,      0,      100},
+        {   0,      0,      0,      200},
       //  {   0,      0,      0,      300},
       //  {   4500,   0,      0,      300},
       //  {   -4500,  0,      0,      300},
@@ -400,15 +414,13 @@ void stability_test()
       //  {5000,      0,   3000,      1000},
       //  {5000,      0,   4500,      1000}
     };
-    uint32_t testing_array_rows = 8;
+    uint32_t testing_array_rows = 5;
  
     hal.console->printf_P(PSTR("\nTesting stability patch\nThrottle Min:%d Max:%d\n"),(int)rc3.radio_min,(int)rc3.radio_max);
 
     // arm motors
     motors.armed(true);
     
-    uint32_t start_time;
-    uint32_t current_time;
     // run stability test
     for (int16_t i=0; i < testing_array_rows; i++) {
         roll_in = testing_array[i][0];
@@ -425,7 +437,8 @@ void stability_test()
         current_time = hal.scheduler->micros();
 	while((current_time - start_time)/1000000 < 3){ //loop for three seconds
         	
-		attitude_control.angle_ef_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true); //calculates error
+		ahrs.update(); 
+		//attitude_control.angle_ef_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true); //calculates error
 		attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
 		motors.output();
 			
@@ -445,7 +458,6 @@ void stability_test()
                 	(int)hal.rcout->read(3),
                 	(int)throttle_radio_in,
                 	(int)avg_out);
-        	hal.scheduler->delay(2000);
 		
 		current_time = hal.scheduler->micros();
 	}
@@ -456,9 +468,11 @@ void stability_test()
     motors.set_yaw(0);
     motors.set_throttle(0);
     motors.output();
-    motors.armed(false);
+    motors.armed(false); //this doesn't work
 
     hal.console->println("finished test.");
+    hal.scheduler->delay(3000);
+    motors.output_min(); //use this to "turn off" motors
 }
 
 // throttle_loop - should be run at 50 hz
@@ -486,6 +500,7 @@ static void read_barometer(void)
     baro_alt = baro.get_altitude() * 100.0f;
     baro_climbrate = baro.get_climb_rate() * 100.0f;
 
+    hal.console->printf_P(PSTR("baro_alt = %d cm above home \t baro_climbrate = %d cm/s"), (int)baro_alt, (int)baro_climbrate); 
     // run glitch protection and update AP_Notify if home has been initialised
     baro_glitch.check_alt();
     bool report_baro_glitch = (baro_glitch.glitching());//&& !ap.usb_connected && hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED);
@@ -505,6 +520,7 @@ static void read_barometer(void)
 static void barometer_accumulate(void)
 {
     baro.accumulate();
+    //hal.console->println("ran barometer_accumulate");
 }
 
 
@@ -552,21 +568,47 @@ void init_firedrone(){
  
 }
 
+
+//TODO: why are inertia_alt and inertia_climb_rate always 0? need them for good altitude error measurements
 void takeoff_and_land(){
     
     if(start == 1){
         auto_takeoff_start(100);
 	start++;
+	//hal.console->println("ran auto_takeoff_start");
     }
-    else if((timer-initial_time)/1000000 < 10){ //takeoff for ten seconds
-    	auto_takeoff_run();
+    else if((timer-start_time)/1000000 < 10){ //takeoff for ten seconds
+	ahrs.update();
+        attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+        motors.output();
+	auto_takeoff_run();
+	
+	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t\n"),
+                        (int)hal.rcout->read(0),
+                        (int)hal.rcout->read(1),
+                        (int)hal.rcout->read(2),
+                        (int)hal.rcout->read(3));
+	//hal.console->println("ran auto_takeoff_run");
     }
     else if(start == 2){
     	auto_land_start();
 	start++;
+        //hal.console->println("ran auto_land_start");
+
     }
     else{
+	ahrs.update();                
+        attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+        motors.output();
 	auto_land_run();
+      
+	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t\n"),
+                        (int)hal.rcout->read(0),
+                        (int)hal.rcout->read(1),
+                        (int)hal.rcout->read(2),
+                        (int)hal.rcout->read(3));
+        //hal.console->println("ran auto_land_run");
+
     }
 }
 
@@ -584,7 +626,7 @@ static void auto_takeoff_start(float final_alt) //units are cm
     //defined in control_auto.pde, takes in param auto_yaw_mode defined in ArduCopter.pde. will need to implement later
     //set_auto_yaw_mode(AUTO_YAW_HOLD); // pilot controls the heading
 
-
+    motors.armed(true);
     // tell motors to do a slow start
     motors.slow_start(true);
 }
@@ -594,7 +636,6 @@ static void auto_takeoff_start(float final_alt) //units are cm
 static void auto_takeoff_run()
 {
    // if not auto armed set throttle to zero and exit immediately
-   //TODO: need flag
    if(!ap.auto_armed) {   //ap is a struct in ArduCopter.pde which uses update_auto_armed() (system.pde) to update status of auto_armed flag 
 
        // initialise wpnav targets
@@ -616,7 +657,7 @@ static void auto_takeoff_run()
     //}
 
     // run waypoint controller
-    wp_nav.update_wpnav();
+    wp_nav.update_wpnav(); //calls pos_control.update_xy_controller
 
     // call z-axis position controller (wpnav should have already updated it's alt target)
     pos_control.update_z_controller();
@@ -711,5 +752,31 @@ static void auto_land_run()
     attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
 }
 
+static void update_thr_cruise()
+{
+    // ensure throttle_avg has been initialised
+    if( throttle_avg == 0 ) {
+        throttle_avg = throttle_cruise;
+        // update position controller
+        pos_control.set_throttle_hover(throttle_avg);
+    }
+
+    // if not armed or landed exit
+    if (!motors.armed() || ap.land_complete) {
+        return;
+    }
+
+    //TODO: does this need to be fixed? rc3.radio_out?
+    // get throttle output
+    int16_t throttle = rc3.servo_out;
+
+    // calc average throttle if we are in a level hover
+    if (throttle > throttle_min && abs(climb_rate) < 60 && labs(ahrs.roll_sensor) < 500 && labs(ahrs.pitch_sensor) < 500) {
+        throttle_avg = throttle_avg * 0.99f + (float)throttle * 0.01f;
+        throttle_cruise = throttle_avg;
+        // update position controller
+        pos_control.set_throttle_hover(throttle_avg);
+    }
+}
 
 AP_HAL_MAIN();
