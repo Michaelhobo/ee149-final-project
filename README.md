@@ -1,126 +1,94 @@
-# ArduPilot Project
+# UC Berkeley EECS149 Fire Detection Drone Project
 
-You can find lots of development information at the [ArduPilot development site](http://dev.ardupilot.com)
+The UC Berkeley EECS149 Fire Detection Drone Project is a Clone of the Ardupilot Project. If you are looking for the original ArduPilot project, this is probably not what you are looking for! 
 
-#### To compile APM2.x Ardupilot after version 3.1 please follow the instructions found at 
+Thank you to the ArduPilot development community for creating an easy to use base platform for this class project. Our project builds on the original ArduPilot program with additional code to help it detect and find fires.
 
-[Dev.Ardupilot] (http://dev.ardupilot.com/wiki/building-ardupilot-with-arduino-windows/) 
+# Notes
 
+This project is only developed for APM2.6. The Master branch has been switched to 
 
-## Getting the source
+# Building the Project
 
-You can either download the source using the "ZIP" button at the top
-of the github page, or you can make a clone using git:
-
+Go to ardupilot/ArduCopter
 ```
-git clone git://github.com/diydrones/ardupilot.git
-```
-
-## Prerequisites
-
-### Ubuntu Linux
-
-The following packages are required to build ardupilot for the
-APM1/APM2 (Arduino) platform in Ubuntu: `gawk make git arduino-core
-g++`
-
-To build ardupilot for the PX4 platform, you'll first need to install
-the PX4 toolchain and download the PX4 source code.  See the [PX4
-toolchain installation
-page](https://pixhawk.ethz.ch/px4/dev/toolchain_installation_lin).
-
-The easiest way to install all these prerequisites is to run the
-`ardupilot/Tools/scripts/install-prereqs-ubuntu.sh` script, which will
-install all the required packages and download all the required
-software.
-
-
-## Building using the Arduino IDE
-
-ArduPilot is no longer compatible with the standard Arduino
-distribution.  You need to use a patched Arduino IDE to build
-ArduPilot.
-
-Do not try to use the Arduino IDE to build in Linux--you should follow
-the instructions in the "Building using make" section.
-
-1. The patched ArduPilot Arduino IDE is available for Mac and Windows
-   from the [downloads
-   page](http://firmware.diydrones.com).
-
-2. Unpack and launch the ArduPilot Arduino IDE. In the preferences
-   menu, set your sketchbook location to your downloaded or cloned
-   `ardupilot` directory.
-
-3. In the ArduPilot Arduino IDE, select your ArduPilot type (APM1 or
-   APM2) from the ArduPilot menu (in the top menubar).
-
-4. Restart the ArduPilot Arduino IDE. You should now be able to build
-   ArduPlane or ArduCopter from source.
-
-5. Remember that, after changing ArduPilot type (APM1 or APM2) in the
-   IDE, you'll need to close and restart the IDE before continuing.
-
-
-## Building using make
-
- 1. Before you build the project for the first time, you'll need to run `make
-    configure` from a  sketch directory (i.e. ArduPlane, ArduCopter, etc...).
-    This will create a `config.mk` file at the top level of the repository. You
-    can set some defaults in `config.mk`
-
- 2. In the sketch directory, type `make` to build for APM2. Alternatively,
-    `make apm1` will build for the APM1 and `make px4` will build for the PX4.
-    The binaries will generated in `/tmp/<i>sketchname</i>.build`.
-
- 3. Type `make upload` to upload. You may need to set the correct default
-    serial port in your `config.mk`.
-
-
-## Development using VirtualBox
-
-ardupilot has a standardized Linux virtual machine (VM) setup script
-that uses the free VirtualBox virtualization software.  You can use it
-to create a standard, reproducible development environment in just a
-few minutes in Linux, OS X, or Windows.
-
- 1. [Download VirtualBox](https://www.virtualbox.org/wiki/Downloads)
- for your Mac, Windows or Linux machine.
-
- 2. [Install vagrant](http://docs.vagrantup.com/v2/installation/).
-
- 4. In the `ardupilot` directory, run `vagrant up` from the command
- line.  This will create a new Ubuntu Linux VM.
-
- 5. Run `vagrant ssh -c "ardupilot/Tools/scripts/install-prereqs-ubuntu.sh -y"`.
- This will install all the prerequisites for doing ardupilot development.
-
-You can now run `vagrant ssh` to log in to the development
-environment.  The `~/ardupilot` directory in the VM is actually the
-`ardupilot` directory in your host operating system--changes in either
-directory show up in the other.
-
-Once you've followed the instructions above, here's how you would
-build ArduCopter for PX4 in the development environment:
-
-```
-$ vagrant ssh
-# cd ardupilot/ArduCopter
-# make configure
+make
 ```
 
-Back at the terminal:
-
+# Uploading to APM2.6
+Go to ardupilot/ArduCopter
 ```
-# make px4
-# make px4-upload  # (optional)
+make upload
 ```
 
-# User Technical Support
+# Testing using MAVLink and the SITL simulator
+We included a modified version of MAVProxy that can send the states we want using the mode module. This can be found in the `mavlink/` directory, with a bulk of the modifications in `mavlink/pymavlink/mavutil.py`. 
 
-ArduPilot users should use the DIYDrones.com forums for technical support.
+# Step 1 - Install modified version of MAVProxy
+To install the modified version of MAVProxy, you need to install it to your current system
+```
+cd mavlink/pymavlink
+sudo python setup.py install
+```
+If this breaks your MAVProxy implementation, you can reinstall the latest unmodified version using `pip`:
+```
+sudo pip install --upgrade pymavlink MAVProxy
+```
 
-# Development Team
+# Step 2 - Run the simulator
+*You ALWAYS need to run the simulator from the same directory: ArduCopter*
+```
+cd ArduCopter
+make clean
+make
+
+# console displays the text console. map displays the interactive map.
+# Both are optional. sim_vehicle.sh will drop you in a MAVProxy console.
+sim_vehicle.sh --console --map
+```
+
+# Step 3 - Changing Modes
+You will now be in the MAVProxy console. As of Dec 7, 2015 the implementation is not yet complete. However, MAVProxy is set up to now include different modes. We use the `mode` module to set different modes manually via MAVLink. Currently, we've added FIRE, TAKEOFF, FLY, and OBSTACLE.
+To see the list of modes:
+```
+mode
+```
+
+To set the mode:
+```
+mode <MODE_NAME>
+```
+
+Note that the new modes will put you in the wrong state. This is because the mapping from MAVProxy --> ArduCopter is correct, but the mapping from ArduCopter --> MAVProxy is incorrect. I haven't found the offending line of code yet, and I may not bother because it works.
+You can verify that the correct states are being called by switching to different modes. This is because different modes have different responses in their init funcitons.
+Your mode should change when you switch to fly, fire, or takeoff. These are "correct"
+```
+STABILIZE> mode fly
+LOITER>
+```
+
+If you switch to obstacle, there should be no change, because the init function currently returns false.
+```
+STABILIZE> mode obstacle
+STABILIZE>
+```
+I have added a debug message in the init function for fire mode.
+```
+STABILIZE> mode fire
+APM: No fire yet
+ALT_HOLD>
+```
+
+# Adding debugging messages in ArduCopter
+Debugging messages can be added almost anywhere in ArduCopter's PDE files. The include functions are done for you automatically in their main structure. To send a message, you can use the function `gcs_send_text_P`. A good reference is currently in `ArduCopter/control_fire.pde`.
+
+# Adding control logic to different modes
+Modes are defined in files called `control_<modename>.pde`, and have 2 basic functions (init and run). These modes are changed by `flight_mode.pde`. I have redefined the states in `ArduCopter/defines.h` so that an incoming MAVLink `set_mode`message will call the correct state in the `flight_mode.pde` file's `set_mode` function.
+From here, they will run the `<modename>_init()` function in the corresponding `control_<modename>.pde` file. Add logic for different states into these control files.
+
+# Snippet from the original Ardupilot team:
+#
+# ArduPilot Development Team
 
 The ArduPilot project is open source and maintained by a team of volunteers.
 
