@@ -1,4 +1,3 @@
-ltl p4 { []( (state == HOLD) -> ((x != DISABLE) && (x != RESUME) )) -> <>(state == STANDBY) }
 /*
  *  Example of AP_Motors library.
  *  Code by Randy Mackay. DIYDrones.com
@@ -223,6 +222,9 @@ static void auto_land_start(const Vector3f& destination);
 //      called by auto_run at 100hz or more
 static void auto_land_run();
 
+static void vel_control_start();
+static void vel_control_run();
+
 void init_firedrone();
 static void read_MLX90614();
 void init_MLX90614();
@@ -308,7 +310,7 @@ void loop()
     int16_t value;
 
     // display help
-    hal.console->println("Press 'm' to run motor orders test, 's' to run stability patch test, 't' to run takeoff_and_land test.  Be careful the motors will spin!");
+    hal.console->println("Press 'm' to run motor orders test, 's' to run stability patch test, 't' to run takeoff_move_land test.  Be careful the motors will spin!");
 
     // wait for user to enter something
     while( !hal.console->available() ) {
@@ -331,7 +333,7 @@ void loop()
 
 	start_time = hal.scheduler->micros();
         current_time = hal.scheduler->micros();
-        while((current_time - start_time)/1000000 < 20){ //loop for 20 seconds
+        while((current_time - start_time)/1000000 < 25){ //loop for 25 seconds
 
 		// wait for an INS sample
        		ins.wait_for_sample();
@@ -343,8 +345,8 @@ void loop()
         	G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
         	fast_loopTimer          = timer;
     
-		//hal.console->println("about to run takeoff_and_land");
-		takeoff_and_land();
+		//hal.console->println("about to run takeoff_move_land");
+		takeoff_move_land();
 		
 		// tell the scheduler one tick has passed
         	scheduler.tick();
@@ -586,20 +588,20 @@ void init_firedrone(){
 }
 
 
-//TODO: why are inertia_alt and inertia_climb_rate always 0? need them for good altitude error measurements
-void takeoff_and_land(){
+void takeoff_move_land(){
    
     int16_t throttle_radio_in;
     int16_t avg_out;
- 
+
+    int16_t time_passed = timer-start_time/1000000; //in seconds 
     if(start == 1){
         auto_takeoff_start(100);
 	start++;
 	//hal.console->println("ran auto_takeoff_start");
     }
-    else if((timer-start_time)/1000000 < 10){ //takeoff for ten seconds
+    else if(time_passed < 10){ //takeoff for ten seconds
 	ahrs.update();
-        attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+        attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor as a function of _rate_bf_target
         motors.output();
 	auto_takeoff_run();
 
@@ -616,12 +618,27 @@ void takeoff_and_land(){
 	//hal.console->println("ran auto_takeoff_run");
     }
     else if(start == 2){
+	vel_control_start();
+	start++;	
+    }
+    else if(time_passed < 15){ //move xy for 5 seconds
+	ahrs.update();
+        attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+        motors.output();
+	
+ 	/// set_desired_velocity_xy - sets desired velocity in cm/s in lat and lon directions
+	///when update_xy_controller is next called the position target is moved based on the desired velocity and
+	///the desired velocities are fed forward into the rate_to_accel step
+	//Usage: pos_control.set_desired_velocity_xy(float vel_lat_cms, float vel_lon_cms) {_vel_desired.x = vel_lat_cms; _vel_desired.y = vel_lon_cms; }
+	pos_control.set_desired_velocity_xy(0, 40); //TODO: check which way y-axis is in X-frame orientation. outputing 40 cm/s as target velocity
+	vel_control_run();
+    }
+    else if(start == 3){ 
     	auto_land_start();
 	start++;
         //hal.console->println("ran auto_land_start");
-
     }
-    else{
+    else{ //landing
 	ahrs.update();                
         attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
         motors.output();
@@ -811,7 +828,41 @@ static void update_thr_cruise()
     }
 }
 
+static void vel_control_start(){
+        
+    // initialize vertical speeds and leash lengths
+    //pos_control.set_speed_z(-g.pilot_velocity_z_max, g.pilot_velocity_z_max);
+    //pos_control.set_accel_z(g.pilot_accel_z);
+    pos_control.set_speed_z(-50, 50); //NOTE: check the header file for defined minimums. they seemed high, but maybe for a reason
+    pos_control.set_accel_z(100);
 
+    /* initialise velocity controller
+     * set roll, pitch lean angle targets to current attitude
+     * set target position in xy axis
+     * move current vehicle velocity into feed forward velocity
+     */ 
+    pos_control.init_vel_controller_xyz();
+}
+
+static void vel_control_run(){
+    float target_yaw_rate = 0;
+    float heading = 0; //same as yaw
+
+    // update_velocity_controller_xyz - run the velocity controller - should be called at 100hz or higher
+    // velocity targets should be set using set_desired_velocity_xy() method
+    // apply desired velocity request to position target
+    // run position controller's position error to desired velocity step
+    // run velocity to acceleration step
+    // run acceleration to lean angle step
+    // update z controller
+    pos_control.update_vel_controller_xyz();
+
+    //NOTE: get_roll() and get_pitch() return a roll and pitch set in init_vel_controller_xyz(), which is set from ahrs sensors, can set get_auto_heading to 0     
+    attitude_control.angle_ef_roll_pitch_yaw(pos_control.get_roll(), pos_control.get_pitch(), heading, true);
+    hal.console->printf_P(PSTR("velocity roll: %d \t velocity pitch: %d \t velocity yaw: %d \t"), 
+					(int)pos_control.get_roll(), (int)pos_control.get_pitch(), (int)heading);
+
+}
 
 static void read_MLX90614() {
 
