@@ -586,7 +586,10 @@ void init_firedrone(){
 
 //TODO: why are inertia_alt and inertia_climb_rate always 0? need them for good altitude error measurements
 void takeoff_and_land(){
-    
+   
+    int16_t throttle_radio_in;
+    int16_t avg_out;
+ 
     if(start == 1){
         auto_takeoff_start(100);
 	start++;
@@ -597,12 +600,17 @@ void takeoff_and_land(){
         attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
         motors.output();
 	auto_takeoff_run();
+
+	throttle_radio_in = rc3.radio_out;
+        avg_out = ((hal.rcout->read(0) + hal.rcout->read(1) + hal.rcout->read(2) + hal.rcout->read(3))/4);
 	
-	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t\n"),
+	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t THR_IN/AVG_OUT: %d/%d\n"),
                         (int)hal.rcout->read(0),
                         (int)hal.rcout->read(1),
                         (int)hal.rcout->read(2),
-                        (int)hal.rcout->read(3));
+                        (int)hal.rcout->read(3),
+			(int)throttle_radio_in,
+			(int)avg_out);
 	//hal.console->println("ran auto_takeoff_run");
     }
     else if(start == 2){
@@ -617,11 +625,17 @@ void takeoff_and_land(){
         motors.output();
 	auto_land_run();
       
-	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t\n"),
+	throttle_radio_in = rc3.radio_out;
+        avg_out = ((hal.rcout->read(0) + hal.rcout->read(1) + hal.rcout->read(2) + hal.rcout->read(3))/4);
+
+	hal.console->printf_P(PSTR("MOT1:%5d \tMOT2:%5d \tMOT3:%5d \tMOT4:%5d \t THR_IN/AVG_OUT: %d/%d\n"),
                         (int)hal.rcout->read(0),
                         (int)hal.rcout->read(1),
                         (int)hal.rcout->read(2),
-                        (int)hal.rcout->read(3));
+                        (int)hal.rcout->read(3),
+			(int)throttle_radio_in,
+                        (int)avg_out);
+
         //hal.console->println("ran auto_land_run");
 
     }
