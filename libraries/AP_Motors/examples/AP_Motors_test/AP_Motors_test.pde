@@ -1,3 +1,4 @@
+ltl p4 { []( (state == HOLD) -> ((x != DISABLE) && (x != RESUME) )) -> <>(state == STANDBY) }
 /*
  *  Example of AP_Motors library.
  *  Code by Randy Mackay. DIYDrones.com
@@ -34,6 +35,7 @@
 #include <StorageManager.h>
 #include <AP_Terrain.h>
 #include <AP_NavEKF.h>
+
 
 #include <AP_InertialNav.h>     // Inertial Navigation library
 #include <AC_WPNav.h>           // Waypoint Navigation library
@@ -267,8 +269,8 @@ void setup()
 
     // motor initialisation
     motors.set_update_rate(490); //RC_FAST_SPEED
-    // motors.set_frame_orientation(AP_MOTORS_X_FRAME);
-    motors.set_frame_orientation(AP_MOTORS_PLUS_FRAME);
+    motors.set_frame_orientation(AP_MOTORS_X_FRAME);
+    //motors.set_frame_orientation(AP_MOTORS_PLUS_FRAME);
     motors.set_min_throttle(throttle_min); //throttle_min = 130
     motors.set_mid_throttle(500);
     motors.Init();      // initialise motors
