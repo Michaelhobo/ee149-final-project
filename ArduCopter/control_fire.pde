@@ -11,6 +11,7 @@ static bool fire_init(bool ignore_checks)
 }
 static void fire_run()
 {
+  gcs_send_text_P(SEVERITY_HIGH, PSTR("FIRE!!!!"));
   if(is_fire) {
     gcs_send_text_P(SEVERITY_HIGH, PSTR("FIRE!!!!"));
     fire_count = 1000;
