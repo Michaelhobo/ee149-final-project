@@ -281,7 +281,6 @@ void init_firedrone(){
  
 }
 
-
 void takeoff_move_land(){
    
     int16_t throttle_radio_in;

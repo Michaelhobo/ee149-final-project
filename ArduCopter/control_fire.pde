@@ -7,6 +7,7 @@ static bool fire_init(bool ignore_checks)
   is_fire = false;
   fire_count = 1000;
   gcs_send_text_P(SEVERITY_LOW, PSTR("No fire yet"));
+  motors.output_min();
   return true;
 }
 static void fire_run()
