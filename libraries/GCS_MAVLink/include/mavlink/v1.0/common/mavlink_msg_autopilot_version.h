@@ -4,9 +4,9 @@
 
 typedef struct __mavlink_autopilot_version_t
 {
- uint64_t capabilities; ///< bitmask of capabilities (see MAV_PROTOCOL_CAPABILITY enum)
- uint32_t version; ///< Firmware version number
- uint8_t custom_version[8]; ///< Custom version field, commonly the first 8 bytes (16 characters) of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.
+ uint64_t capabilities; /*< bitmask of capabilities (see MAV_PROTOCOL_CAPABILITY enum)*/
+ uint32_t version; /*< Firmware version number*/
+ uint8_t custom_version[8]; /*< Custom version field, commonly the first 8 bytes (16 characters) of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.*/
 } mavlink_autopilot_version_t;
 
 #define MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN 20

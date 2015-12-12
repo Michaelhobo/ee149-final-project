@@ -8,6 +8,7 @@ static void do_loiter_unlimited(const AP_Mission::Mission_Command& cmd);
 static void do_circle(const AP_Mission::Mission_Command& cmd);
 static void do_loiter_time(const AP_Mission::Mission_Command& cmd);
 static void do_spline_wp(const AP_Mission::Mission_Command& cmd);
+static void do_change_dir(const AP_Mission::Mission_Command& cmd);
 #if NAV_GUIDED == ENABLED
 static void do_nav_guided(const AP_Mission::Mission_Command& cmd);
 #endif
@@ -72,6 +73,10 @@ static bool start_command(const AP_Mission::Mission_Command& cmd)
 
     case MAV_CMD_NAV_SPLINE_WAYPOINT:           // 82  Navigate to Waypoint using spline
         do_spline_wp(cmd);
+        break;
+    case MAV_CMD_NAV_DIR:                     // 93 Change directions
+        //FIREDRONE
+        do_change_dir(cmd);
         break;
 
 #if NAV_GUIDED == ENABLED
@@ -493,6 +498,13 @@ static void do_spline_wp(const AP_Mission::Mission_Command& cmd)
 
     // set spline navigation target
     auto_spline_start(local_pos, stopped_at_start, seg_end_type, next_destination);
+}
+
+// FIREDRONE - Change the direction the fire drone looks in.
+// cmd should have a cardinal direction in {N,S,W,E,NE,NW,SE,SW}
+static void do_change_dir(const AP_Mission::Mission_Command& cmd)
+{
+    // 
 }
 
 #if NAV_GUIDED == ENABLED

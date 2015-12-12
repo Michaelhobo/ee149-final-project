@@ -17,4 +17,4 @@ echo "Removing old includes"
 rm -rf "$mavdir/include/*"
 
 echo "Generating C code"
-mavgen.py --lang=C --wire-protocol=1.0 --output=$mavdir/include/mavlink/v1.0 $mavdir/message_definitions/ardupilotmega.xml
+mavgen.py --lang=C --no-validate --wire-protocol=1.0 --output=$mavdir/include/mavlink/v1.0 $mavdir/message_definitions/ardupilotmega.xml
