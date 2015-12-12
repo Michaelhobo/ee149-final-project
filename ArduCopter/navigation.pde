@@ -9,10 +9,7 @@ static void run_nav_updates(void)
     calc_position();
 
     // calculate distance and bearing for reporting and autopilot decisions
-    calc_distance_and_bearing();
-
-    // run autopilot to make high level decisions about control modes
-    run_autopilot();
+    //calc_distance_and_bearing();
 }
 
 // calc_position - get lat and lon positions from inertial nav library
@@ -73,12 +70,3 @@ static void calc_home_distance_and_bearing()
     }
 }
 
-// run_autopilot - highest level call to process mission commands
-static void run_autopilot()
-{
-    if (control_mode == AUTO) {
-        // update state of mission
-        // may call commands_process.pde's start_command and verify_command functions
-        mission.update();
-    }
-}

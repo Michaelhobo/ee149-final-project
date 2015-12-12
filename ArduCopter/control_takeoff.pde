@@ -112,90 +112,15 @@ AC_PID PID_LOITER_RATE_LON(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_R
 
 AC_PID PID_LOITER_RATE_LAT(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_RATE_IMAX);
 
-
-float G_Dt = 0.02; //seconds
-
-static float baro_climbrate;
-
-//Documentation of GLobals:
-static union {
-    struct {
-//        uint8_t home_is_set         : 1; // 0
-//        uint8_t simple_mode         : 2; // 1,2 // This is the state of simple mode : 0 = disabled ; 1 = SIMPLE ; 2 = SUPERSIMPLE
-//        uint8_t pre_arm_rc_check    : 1; // 3   // true if rc input pre-arm checks have been completed successfully
-//        uint8_t pre_arm_check       : 1; // 4   // true if all pre-arm checks (rc, accel calibration, gps lock) have been performed
-        uint8_t auto_armed          : 1; // 5   // stops auto missions from beginning until throttle is raised
-//        uint8_t logging_started     : 1; // 6   // true if dataflash logging has started
-        uint8_t land_complete       : 1; // 7   // true if we have detected a landing
-//        uint8_t new_radio_frame     : 1; // 8       // Set true if we have new PWM data to act on from the Radio
-//        uint8_t CH7_flag            : 2; // 9,10   // ch7 aux switch : 0 is low or false, 1 is center or true, 2 is high
-//        uint8_t CH8_flag            : 2; // 11,12   // ch8 aux switch : 0 is low or false, 1 is center or true, 2 is high
-//        uint8_t usb_connected       : 1; // 13      // true if APM is powered from USB connection
-//        uint8_t rc_receiver_present : 1; // 14  // true if we have an rc receiver present (i.e. if we've ever received an update
-//        uint8_t compass_mot         : 1; // 15  // true if we are currently performing compassmot calibration
-//        uint8_t motor_test          : 1; // 16  // true if we are currently performing the motors test
-//        uint8_t initialised         : 1; // 17  // true once the init_ardupilot function has completed.  Extended status to GCS is not sent until this completes
-        uint8_t land_complete_maybe : 1; // 18  // true if we may have landed (less strict version of land_complete)
-        uint8_t throttle_zero       : 1; // 19  // true if the throttle stick is at zero, debounced
-    };
-    uint32_t value;
-} ap;
-
-
-const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
-
-
-// main loop scheduler
-static AP_Scheduler scheduler;
-
 RC_Channel rc1(0), rc2(1), rc3(2), rc4(3);
-AP_MotorsQuad   motors(rc1, rc2, rc3, rc4);
-
-AP_InertialSensor ins;
 
 AP_Baro_MS5611 baro(&AP_Baro_MS5611::spi);
-AP_GPS gps;
-GPS_Glitch gps_glitch(gps);
-Baro_Glitch baro_glitch(baro);
 
-AP_Compass_HMC5843 compass;
-
-AP_AHRS_DCM ahrs(ins, baro, gps);
-
-// key aircraft parameters passed to multiple libraries
-static AP_Vehicle::MultiCopter aparm;
-
-
-// Inertial Nav declaration
-AP_InertialNav inertial_nav(ahrs, baro, gps_glitch, baro_glitch);
-
-
-
-AC_AttitudeControl attitude_control(ahrs, aparm, motors, p_stabilize_roll, p_stabilize_pitch, p_stabilize_yaw,
-                        PID_RATE_ROLL, PID_RATE_PITCH, PID_RATE_YAW);
-
-
-AC_PosControl pos_control(ahrs, inertial_nav, motors, attitude_control,
-                        p_alt_hold, p_throttle_rate, PID_THROTTLE_ACCEL,
-                        p_loiter_pos, PID_LOITER_RATE_LAT, PID_LOITER_RATE_LON);
-
-static AC_WPNav wp_nav(inertial_nav, ahrs, pos_control);
-
-uint16_t throttle_avg = 0; //initialization
 uint16_t throttle_cruise = 450; //just as a starting value like in Newton's approximation for finding zeros
 uint16_t throttle_min = 130; //originally hardcoded into the file when we got it
 
 
-// Current location of the copter
-// current_loc uses the baro/gps soloution for altitude rather than gps only.
-static struct   Location current_loc; //AP_Common.h
-
-// The cm/s we are moving up or down based on filtered data - Positive = UP
-static float climb_rate;
-static float baro_alt;            // barometer altitude in cm above home
-
 // Time in microseconds of main control loop
-static uint32_t fast_loopTimer;
 uint32_t timer;
 uint32_t start_time;
 uint32_t current_time;
@@ -205,18 +130,10 @@ static int16_t start = 1; //used to switch from takeoff to land
 // auto_takeoff_start - initialises waypoint controller to implement take-off
 static void auto_takeoff_start(float final_alt); //units are cm
 
-// auto_takeoff_run - takeoff in auto mode
-//      called by auto_run at 100hz or more
-static void auto_takeoff_run();
-
 static void auto_land_start();
 
 // auto_land_start - initialises controller to implement a landing
 static void auto_land_start(const Vector3f& destination);
-
-// auto_land_run - lands in auto mode
-//      called by auto_run at 100hz or more
-static void auto_land_run();
 
 static void vel_control_start();
 static void vel_control_run();
@@ -239,26 +156,6 @@ void init_MLX90614();
   100  = 1hz
   1000 = 0.1hz
  */
-static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
-    { throttle_loop,         2,     450 },
-//  { update_GPS,            2,     900 },
-    { read_barometer,       10,    1000 },
-    { run_nav_updates,       4,     800 },
-    { update_thr_cruise,     1,      50 }, //sets throttle_hover which is needed by update_z_controller
-//  { compass_accumulate,    2,     420 },
-    { barometer_accumulate,  2,     250 },
-//  { update_notify,         2,     100 },
-    { crash_check,          10,      20 },
-//  { gcs_check_input,       2,     550 },
-//  { gcs_send_heartbeat,  100,     150 },
-//  { gcs_send_deferred,     2,     720 },
-//  { gcs_data_stream_send,  2,     950 },
-//  { ten_hz_logging_loop,  10,     300 },
-//  { fifty_hz_logging_loop, 2,     220 },
-//  { read_receiver_rssi,   10,      50 },
-    { read_MLX90614,	     2,     500 },
-};
-
 static bool takeoff_init(bool ignore_checks)
 {
   
@@ -331,60 +228,8 @@ static void takeoff_run()
 		
 		//hal.console->println("ran scheduler");
 		current_time = hal.scheduler->micros();
-    	}
+  }
 	motors.output_min();
-    }
-}
-// throttle_loop - should be run at 50 hz
-// ---------------------------
-static void throttle_loop()
-{
-    //passing in the barometer measured altitude to the inertal navigation since read_inertial_altitude gets its 
-    //current altitude from inertial_nav.get_altitude, which only asks for an altitude that is set by the set_altitude function
-    inertial_nav.set_altitude(baro_alt);
-    inertial_nav.set_velocity_z(baro_climbrate);
-    // get altitude and climb rate from inertial lib
-    read_inertial_altitude();
-
-    // check if we've landed
-    update_land_detector();
-
-    // check auto_armed status
-    update_auto_armed();
-
-}
-
-// return barometric altitude in centimeters
-static void read_barometer(void)
-{
-    baro.read();
-    //if (should_log(MASK_LOG_IMU)) {
-    //    Log_Write_Baro();
-    //}
-    baro_alt = baro.get_altitude() * 100.0f;
-    baro_climbrate = baro.get_climb_rate() * 100.0f;
-
-    hal.console->printf_P(PSTR("baro_alt = %d cm above home \t baro_climbrate = %d cm/s"), (int)baro_alt, (int)baro_climbrate); 
-    // run glitch protection and update AP_Notify if home has been initialised
-    baro_glitch.check_alt();
-    bool report_baro_glitch = (baro_glitch.glitching());//&& !ap.usb_connected && hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED);
-    //if (AP_Notify::flags.baro_glitching != report_baro_glitch) {
-    //    if (baro_glitch.glitching()) {
-    //        Log_Write_Error(ERROR_SUBSYSTEM_BARO, ERROR_CODE_BARO_GLITCH);
-    //    } else {
-    //        Log_Write_Error(ERROR_SUBSYSTEM_BARO, ERROR_CODE_ERROR_RESOLVED);
-    //    }
-    //    AP_Notify::flags.baro_glitching = report_baro_glitch;
-    //}
-}
-
-/*
-  try to accumulate a baro reading
- */
-static void barometer_accumulate(void)
-{
-    baro.accumulate();
-    //hal.console->println("ran barometer_accumulate");
 }
 
 void init_MLX90614(){
@@ -509,209 +354,6 @@ void takeoff_move_land(){
     }
 }
 
-// auto_takeoff_start - initialises waypoint controller to implement take-off
-static void auto_takeoff_start(float final_alt) //units are cm
-{
-    //auto_mode = Auto_TakeOff;
-
-    // initialise wpnav destination
-    Vector3f target_pos = inertial_nav.get_position();
-    target_pos.z = final_alt;
-    hal.console->printf_P(PSTR("target_pos.x = %f \t target_pos.y = %f \t target_pos.z = %f \n"), (float)target_pos.x, (float)target_pos.y, (float)target_pos.z);
-    wp_nav.set_wp_destination(target_pos); //units are cm
-
-    // initialise yaw
-    //defined in control_auto.pde, takes in param auto_yaw_mode defined in ArduCopter.pde. will need to implement later
-    //set_auto_yaw_mode(AUTO_YAW_HOLD); // pilot controls the heading
-
-    motors.armed(true);
-    // tell motors to do a slow start
-    motors.slow_start(true);
-}
-
-// auto_takeoff_run - takeoff in auto mode
-//      called by auto_run at 100hz or more
-static void auto_takeoff_run()
-{
-   // if not auto armed set throttle to zero and exit immediately
-   if(!ap.auto_armed) {   //ap is a struct in ArduCopter.pde which uses update_auto_armed() (system.pde) to update status of auto_armed flag 
-
-       // initialise wpnav targets
-       wp_nav.shift_wp_origin_to_current_pos();
-       // reset attitude control targets
-       attitude_control.relax_bf_rate_controller();
-       attitude_control.set_yaw_target_to_current_heading();
-       attitude_control.set_throttle_out(0, false);
-       // tell motors to do a slow start
-       motors.slow_start(true);
-       return;
-   }
-
-    // process pilot's yaw input
-    float target_yaw_rate = 0;
-    //if (!failsafe.radio) {   //failsafe is a struct in ArduCopter.pde
-    //    // get pilot's desired yaw rate
-    //    target_yaw_rate = get_pilot_desired_yaw_rate(g.rc_4.control_in);
-    //}
-
-    // run waypoint controller
-    wp_nav.update_wpnav(); //calls pos_control.update_xy_controller
-
-    // call z-axis position controller (wpnav should have already updated it's alt target)
-    pos_control.update_z_controller();
-
-    // roll & pitch from waypoint controller, yaw rate from pilot
-    attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
-}
-
-// auto_land_start - initialises controller to implement a landing
-static void auto_land_start()
-{
-    // set target to stopping point
-    Vector3f stopping_point;
-    wp_nav.get_loiter_stopping_point_xy(stopping_point); //param is address. add & ?
-
-    // call location specific land start function
-    auto_land_start(stopping_point);
-}
-
-// auto_land_start - initialises controller to implement a landing
-static void auto_land_start(const Vector3f& destination)
-{
-    //auto_mode = Auto_Land;
-
-    // initialise loiter target destination
-    wp_nav.init_loiter_target(destination);
-
-    // initialise altitude target to stopping point
-    pos_control.set_target_to_stopping_point_z();
-
-    // initialise yaw
-    //set_auto_yaw_mode(AUTO_YAW_HOLD);
-}
-
-// auto_land_run - lands in auto mode
-//      called by auto_run at 100hz or more
-static void auto_land_run()
-{
-    int16_t roll_control = 0, pitch_control = 0;
-    float target_yaw_rate = 0;
-
-   // if not auto armed set throttle to zero and exit immediately
-   if(!ap.auto_armed || ap.land_complete){ //in land_detector.pde
-       attitude_control.relax_bf_rate_controller();
-       attitude_control.set_yaw_target_to_current_heading();
-       attitude_control.set_throttle_out(0, false);
-       // set target to current position
-       wp_nav.init_loiter_target();
-       return;
-    }
-
-   // // relax loiter targets if we might be landed
-   // if (land_complete_maybe()) { //TODO. defined in land_detector.pde
-   //     wp_nav.loiter_soften_for_landing();
-   // }
-
-    //// process pilot's input
-    //if (!failsafe.radio) { //TODO. if still receiving input
-    //    if (g.land_repositioning) {
-    //        // apply SIMPLE mode transform to pilot inputs
-    //        update_simple_mode(); //TODO
-
-    //        // process pilot's roll and pitch input
-    //        roll_control = g.rc_1.control_in; //TODO
-    //        pitch_control = g.rc_2.control_in; //TODO
-    //    }
-
-    //    // get pilot's desired yaw rate
-    //    target_yaw_rate = get_pilot_desired_yaw_rate(g.rc_4.control_in); //TODO
-    //}
-
-    //added by henry
-    roll_control = 0;
-    pitch_control = 0;
-    target_yaw_rate = 0;
-
-    // process roll, pitch inputs
-    wp_nav.set_pilot_desired_acceleration(roll_control, pitch_control);
-
-    // run loiter controller
-    wp_nav.update_loiter();
-
-    // call z-axis position controller
-    //sets new height target every G_Dt seconds since G_Dt is expected time between calls. if in 100Hz loop, shouldn't G_Dt=.01?
-    //pos_control.set_alt_target_from_climb_rate(get_throttle_land(), G_Dt, true); //TODO: get_throttle_land(), G_Dt
-    //NOTE:get_throttle_land determines what landing speed. if less than 10 m high, sets as -50 cm/s
-    pos_control.set_alt_target_from_climb_rate(LAND_SPEED, G_Dt, true);
-
-    pos_control.update_z_controller();
-
-    // roll & pitch from waypoint controller, yaw rate from pilot
-    attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
-}
-
-static void update_thr_cruise()
-{
-    // ensure throttle_avg has been initialised
-    if( throttle_avg == 0 ) {
-        throttle_avg = throttle_cruise;
-        // update position controller
-        pos_control.set_throttle_hover(throttle_avg);
-    }
-
-    // if not armed or landed exit
-    if (!motors.armed() || ap.land_complete) {
-        return;
-    }
-
-    //TODO: does this need to be fixed? rc3.radio_out?
-    // get throttle output
-    int16_t throttle = rc3.servo_out;
-
-    // calc average throttle if we are in a level hover
-    if (throttle > throttle_min && abs(climb_rate) < 60 && labs(ahrs.roll_sensor) < 500 && labs(ahrs.pitch_sensor) < 500) {
-        throttle_avg = throttle_avg * 0.99f + (float)throttle * 0.01f;
-        throttle_cruise = throttle_avg;
-        // update position controller
-        pos_control.set_throttle_hover(throttle_avg);
-    }
-}
-
-static void vel_control_start(){
-        
-    // initialize vertical speeds and leash lengths
-    //pos_control.set_speed_z(-g.pilot_velocity_z_max, g.pilot_velocity_z_max);
-    //pos_control.set_accel_z(g.pilot_accel_z);
-    pos_control.set_speed_z(-50, 50); //NOTE: check the header file for defined minimums. they seemed high, but maybe for a reason
-    pos_control.set_accel_z(100);
-
-    /* initialise velocity controller
-     * set roll, pitch lean angle targets to current attitude
-     * set target position in xy axis
-     * move current vehicle velocity into feed forward velocity
-     */ 
-    pos_control.init_vel_controller_xyz();
-}
-
-static void vel_control_run(){
-    float target_yaw_rate = 0;
-    float heading = 0; //same as yaw
-
-    // update_velocity_controller_xyz - run the velocity controller - should be called at 100hz or higher
-    // velocity targets should be set using set_desired_velocity_xy() method
-    // apply desired velocity request to position target
-    // run position controller's position error to desired velocity step
-    // run velocity to acceleration step
-    // run acceleration to lean angle step
-    // update z controller
-    pos_control.update_vel_controller_xyz();
-
-    //NOTE: get_roll() and get_pitch() return a roll and pitch set in init_vel_controller_xyz(), which is set from ahrs sensors, can set get_auto_heading to 0     
-    attitude_control.angle_ef_roll_pitch_yaw(pos_control.get_roll(), pos_control.get_pitch(), heading, true);
-    hal.console->printf_P(PSTR("velocity roll: %d \t velocity pitch: %d \t velocity yaw: %d \t"), 
-					(int)pos_control.get_roll(), (int)pos_control.get_pitch(), (int)heading);
-
-}
 
 static void read_MLX90614() {
 
@@ -737,4 +379,3 @@ static void read_MLX90614() {
     hal.console->printf_P(PSTR("%d Kelvins \n"), (int16_t)MLX_90614_tempData); // no need to print but for val checking
 
 }
-AP_HAL_MAIN();
