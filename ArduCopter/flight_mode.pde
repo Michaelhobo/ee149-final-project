@@ -168,6 +168,19 @@ static void update_flight_mode()
         case CIRCLE:
             circle_run();
             break;
+        // FIREDRONE
+        case FIRE:
+            fire_run();
+            break;
+        case FLY:
+            fly_run();
+            break;
+        case OBSTACLE:
+            obstacle_run();
+            break;
+        case TAKEOFF:
+            takeoff_run();
+            break;
 
         case LOITER:
             loiter_run();
