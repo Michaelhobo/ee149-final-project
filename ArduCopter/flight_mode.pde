@@ -21,6 +21,20 @@ static bool set_mode(uint8_t mode)
     }
 
     switch(mode) {
+        //FIREDRONE added states
+        case TAKEOFF:
+            success = takeoff_init(ignore_checks);
+            break;
+        case FLY:
+            success = fly_init(ignore_checks);
+            break;
+        case OBSTACLE:
+            success = obstacle_init(ignore_checks);
+            break;
+        case FIRE:
+            success = fire_init(ignore_checks);
+            break;
+
         case ACRO:
             #if FRAME_CONFIG == HELI_FRAME
                 success = heli_acro_init(ignore_checks);

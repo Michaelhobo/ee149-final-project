@@ -4,12 +4,12 @@
 
 typedef struct __mavlink_omnidirectional_flow_t
 {
- uint64_t time_usec; ///< Timestamp (microseconds, synced to UNIX time or since system boot)
- float front_distance_m; ///< Front distance in meters. Positive value (including zero): distance known. Negative value: Unknown distance
- int16_t left[10]; ///< Flow in deci pixels (1 = 0.1 pixel) on left hemisphere
- int16_t right[10]; ///< Flow in deci pixels (1 = 0.1 pixel) on right hemisphere
- uint8_t sensor_id; ///< Sensor ID
- uint8_t quality; ///< Optical flow quality / confidence. 0: bad, 255: maximum quality
+ uint64_t time_usec; /*< Timestamp (microseconds, synced to UNIX time or since system boot)*/
+ float front_distance_m; /*< Front distance in meters. Positive value (including zero): distance known. Negative value: Unknown distance*/
+ int16_t left[10]; /*< Flow in deci pixels (1 = 0.1 pixel) on left hemisphere*/
+ int16_t right[10]; /*< Flow in deci pixels (1 = 0.1 pixel) on right hemisphere*/
+ uint8_t sensor_id; /*< Sensor ID*/
+ uint8_t quality; /*< Optical flow quality / confidence. 0: bad, 255: maximum quality*/
 } mavlink_omnidirectional_flow_t;
 
 #define MAVLINK_MSG_ID_OMNIDIRECTIONAL_FLOW_LEN 54

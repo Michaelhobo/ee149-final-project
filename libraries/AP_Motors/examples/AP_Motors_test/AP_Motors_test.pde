@@ -116,6 +116,11 @@ AC_PID PID_LOITER_RATE_LON(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_R
 
 AC_PID PID_LOITER_RATE_LAT(LOITER_RATE_P, LOITER_RATE_I, LOITER_RATE_D, LOITER_RATE_IMAX);
 
+// CHANGE Roberto
+static AP_HAL::AnalogSource *DistanceSensorReader;
+float DistanceSensor;
+int flag_o = 0;
+
 
 float G_Dt = 0.02; //seconds
 
@@ -263,12 +268,23 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
     { read_MLX90614,	     2,     500 },
 };
 
+// CHANGE Roberto
+void Obstacle_Update() {
+  DistanceSensor = DistanceSensorReader->voltage_average()*1023/5;
+  if(DistanceSensor < 100)
+    flag_o = 1;
+  else
+    flag_o = 0;
+}
 
 // setup
 void setup()
 {
     hal.console->println("AP_Motors library test ver 1.0");
-
+    
+    // CHANGE Roberto
+    DistanceSensorReader = hal.analogin->channel(0);
+    
     // motor initialisation
     motors.set_update_rate(490); //RC_FAST_SPEED
     motors.set_frame_orientation(AP_MOTORS_X_FRAME);
@@ -308,9 +324,12 @@ void setup()
 void loop()
 {
     int16_t value;
+    
+    Obstacle_Update();
+    hal.console->printf_P(PSTR("Flag Obstacle = %d \n"),(int)flag_o);
 
     // display help
-    hal.console->println("Press 'm' to run motor orders test, 's' to run stability patch test, 't' to run takeoff_move_land test.  Be careful the motors will spin!");
+    hal.console->println("Press 'm' to run motor orders test, 's' to run stability patch test, 't' to run takeoff_move_land test, 'o' to update Obstacle Flag.  Be careful the motors will spin!");
 
     // wait for user to enter something
     while( !hal.console->available() ) {
@@ -362,6 +381,13 @@ void loop()
 		//hal.console->println("ran scheduler");
 		current_time = hal.scheduler->micros();
     	}
+    // CHANGE Roberto
+        if (value == 'o')
+        {
+          Obstacle_Update();
+//          hal.console->printf_P(PSTR("Flag Obstacle = %d \n"),(int)flag_o);
+//          hal.console->printf_P(PSTR("Distance = %f \n"),(float)DistanceSensor);
+        }
 	motors.output_min();
     }
 }
