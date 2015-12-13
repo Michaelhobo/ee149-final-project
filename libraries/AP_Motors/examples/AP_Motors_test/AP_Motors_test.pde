@@ -121,7 +121,6 @@ static AP_HAL::AnalogSource *DistanceSensorReader;
 float DistanceSensor;
 int flag_o = 0;
 
-
 float G_Dt = 0.02; //seconds
 
 static float baro_climbrate;
@@ -310,10 +309,10 @@ void Obstacle_Avoidance_State() {
 void setup()
 {
     hal.console->println("AP_Motors library test ver 1.0");
-    
-    // CHANGE Roberto
+
+	// CHANGE Roberto
     DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
-    
+	
     // motor initialisation
     motors.set_update_rate(490); //RC_FAST_SPEED
     motors.set_frame_orientation(AP_MOTORS_X_FRAME);
@@ -353,7 +352,8 @@ void setup()
 void loop()
 {
     int16_t value;
-    
+	
+	// CHANGE Roberto
     Obstacle_Update();
     hal.console->printf_P(PSTR("Flag Obstacle = %d \n"),(int)flag_o);
 
@@ -410,7 +410,7 @@ void loop()
 		//hal.console->println("ran scheduler");
 		current_time = hal.scheduler->micros();
     	}
-    // CHANGE Roberto
+		// CHANGE Roberto
         if (value == 'o')
         {
           Obstacle_Update();
@@ -685,7 +685,10 @@ void takeoff_move_land(){
 	///when update_xy_controller is next called the position target is moved based on the desired velocity and
 	///the desired velocities are fed forward into the rate_to_accel step
 	//Usage: pos_control.set_desired_velocity_xy(float vel_lat_cms, float vel_lon_cms) {_vel_desired.x = vel_lat_cms; _vel_desired.y = vel_lon_cms; }
-	pos_control.set_desired_velocity_xy(0, 40); //TODO: check which way y-axis is in X-frame orientation. outputing 40 cm/s as target velocity
+	//pos_control.set_desired_velocity_xy(0, 40); //TODO: check which way y-axis is in X-frame orientation. outputing 40 cm/s as target velocity
+	
+	const Vector3f des_vel(0,40,0);	
+	pos_control.set_desired_velocity(des_vel);
 	vel_control_run();
     }
     else if(start == 3){ 
