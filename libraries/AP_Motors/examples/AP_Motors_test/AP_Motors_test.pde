@@ -312,7 +312,7 @@ void setup()
     hal.console->println("AP_Motors library test ver 1.0");
     
     // CHANGE Roberto
-    DistanceSensorReader = hal.analogin->channel(0);
+    DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
     
     // motor initialisation
     motors.set_update_rate(490); //RC_FAST_SPEED
