@@ -277,6 +277,35 @@ void Obstacle_Update() {
     flag_o = 0;
 }
 
+// stops drone for 0.1 second and then moves to left/right and up until the obstacle flag is not set anymore. 
+// then waits for another 0.1s to make sure it's out of the object and sets velocity to zero before proceding with the other states
+void Obstacle_Avoidance_State() {
+  const Vector3f des_vel_run(0,40,10);	
+  const Vector3f des_vel_zero(0,0,0);
+  vel_control_start();
+  pos_control.set_desired_velocity(des_vel_zero);  // stops when seeing obstacle
+  ahrs.update();
+  vel_control_run();
+  attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+  motors.output();
+  while(flag_o == 1)
+  {
+    hal.scheduler->delay(100);
+    pos_control.set_desired_velocity(des_vel_run);  // move away
+    ahrs.update();
+    vel_control_run();
+    attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+    motors.output();
+    Obstacle_Update();
+  }
+  hal.scheduler->delay(100);
+  pos_control.set_desired_velocity(des_vel_zero);   // zero again and exits state
+  ahrs.update();
+  vel_control_run();
+  attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+  motors.output();
+}
+
 // setup
 void setup()
 {
