@@ -1301,7 +1301,8 @@ mode_mapping_firedrone = {
     5 : 'FIRE',
     6 : 'RTL',
     7 : 'CIRCLE',
-    9 : 'LAND'
+    9 : 'LAND',
+    12: 'KILL'
 }
 mode_mapping_acm = {
     0 : 'STABILIZE',
