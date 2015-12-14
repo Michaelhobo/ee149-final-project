@@ -1,23 +1,25 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
-static bool is_fire;
-static int fire_count;
+#define FIRE_HOLD 0
+#define FIRE_FIND 1
+int fire_mode;
 static bool fire_init(bool ignore_checks)
 {
-  is_fire = false;
-  fire_count = 1000;
-  gcs_send_text_P(SEVERITY_LOW, PSTR("No fire yet"));
+  guided_pos_control_start();
+  fire_mode = FIRE_HOLD;
   return true;
 }
 static void fire_run()
 {
-  gcs_send_text_P(SEVERITY_HIGH, PSTR("FIRE!!!!"));
-  if(is_fire) {
-    gcs_send_text_P(SEVERITY_HIGH, PSTR("FIRE!!!!"));
-    fire_count = 1000;
-    is_fire = false;
+  if (rangefinder_works) {
+    if (DistanceSensorReader->voltage_average()*1023/5 < rangefinder_low) {
+      set_mode(OBSTACLE);
+    }
+  }
+  
+  if (fire_mode == FIRE_HOLD) {
+    // TODO if no fire or fire too long, move back. else, stay
+    guided_pos_control_run();
   } else {
-    fire_count -= 1;
-    if (fire_count <= 0) is_fire = true;
+    //move back. If no fire, move forward until fire again. 
   }
 }

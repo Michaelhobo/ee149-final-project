@@ -15,13 +15,34 @@ static bool fly_init(bool ignore_checks)
 
 	return true;
 }
-
-static void fly_run()
-{
-  
+static void continue_fly() {
 	Vector3f des_vel(0,30,0); //30 cm/s in the y direction
 	pos_control.set_desired_velocity(des_vel);
 	firedrone_velocity_run();
+}
+static void fly_run()
+{
+  if (rangefinder_works) {
+    if ( DistanceSensor = DistanceSensorReader->voltage_average()*1023/5< rangefinder_low) {
+      set_mode(OBSTACLE);
+    }
+  }
+  if (MLX90614_works) {
+    if (MLX_90614_tempData > MLX90614_heat_high) {
+      set_mode(FIRE);
+    } else {
+      continue_fly();
+    }
+  } else if (gas_sensor_works) {
+    if (MLX_90614_tempData > gas_sensor_high) {
+      set_mode(FIRE);
+    } else {
+      continue_fly();
+    }
+  } else {
+    hal.console->printf_P(PSTR("No sensors!"));
+    set_mode(LAND);
+  }
 }
 
 static void firedrone_velocity_run(){

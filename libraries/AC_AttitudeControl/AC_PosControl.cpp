@@ -248,7 +248,7 @@ void AC_PosControl::calc_leash_length_z()
         _leash_up_z = calc_leash_length(_speed_up_cms, _accel_z_cms, _p_alt_pos.kP());
         _leash_down_z = calc_leash_length(-_speed_down_cms, _accel_z_cms, _p_alt_pos.kP());
         _flags.recalc_leash_z = false;
-	hal.console->printf_P(PSTR("leash_up_z = %d \t leash_down_z = %d"), (int)_leash_up_z, (int)_leash_down_z);
+	//hal.console->printf_P(PSTR("leash_up_z = %d \t leash_down_z = %d"), (int)_leash_up_z, (int)_leash_down_z);
     }
 }
 
@@ -360,7 +360,7 @@ void AC_PosControl::rate_to_accel_z()
     desired_accel = _accel_feedforward.z + p;
     desired_accel = constrain_int32(desired_accel, -32000, 32000);
 
-     hal.console->printf_P(PSTR("desired accel = %d\n"), (int)desired_accel);
+     //hal.console->printf_P(PSTR("desired accel = %d\n"), (int)desired_accel);
     // set target for accel based throttle controller
     accel_to_throttle(desired_accel);
 }
@@ -401,7 +401,7 @@ void AC_PosControl::accel_to_throttle(float accel_target_z)
     // get d term
     d = _pid_alt_accel.get_d(_accel_error.z, _dt);
 
-    hal.console->printf_P(PSTR("p = %d \t i = %d \t d = %d \t throttle_hover = %d \n"), (int)p, (int)i, (int)d, (int)_throttle_hover);
+    //hal.console->printf_P(PSTR("p = %d \t i = %d \t d = %d \t throttle_hover = %d \n"), (int)p, (int)i, (int)d, (int)_throttle_hover);
     // To-Do: pull min/max throttle from motors
     // To-Do: we had a contraint here but it's now removed, is this ok?  with the motors library handle it ok?
     _attitude_control.set_throttle_out((int16_t)p+i+d+_throttle_hover, true);
