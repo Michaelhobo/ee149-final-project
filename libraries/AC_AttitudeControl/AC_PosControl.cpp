@@ -266,19 +266,19 @@ void AC_PosControl::pos_to_rate_z()
 
     // calculate altitude error
     _pos_error.z = _pos_target.z - curr_alt;
-    hal.console->printf_P(PSTR("target height = %d \t current_alt = %d \t altitude error = %d\n"), (int)_pos_target.z, (int)curr_alt, (int)_pos_error.z);
+    //hal.console->printf_P(PSTR("target height = %d \t current_alt = %d \t altitude error = %d\n"), (int)_pos_target.z, (int)curr_alt, (int)_pos_error.z);
     // do not let target altitude get too far from current altitude
     if (_pos_error.z > _leash_up_z) {
         _pos_target.z = curr_alt + _leash_up_z;
         _pos_error.z = _leash_up_z;
         _limit.pos_up = true;
-	hal.console->printf_P(PSTR("target altitude (up) = %d\n"), (int)_pos_target.z);
+	//hal.console->printf_P(PSTR("target altitude (up) = %d\n"), (int)_pos_target.z);
     }
     if (_pos_error.z < -_leash_down_z) {
         _pos_target.z = curr_alt - _leash_down_z;
         _pos_error.z = -_leash_down_z;
         _limit.pos_down = true;
-	hal.console->printf_P(PSTR("target altitude (down) = %d\n"), (int)_pos_target.z);
+	//hal.console->printf_P(PSTR("target altitude (down) = %d\n"), (int)_pos_target.z);
     }
 
     // check kP to avoid division by zero

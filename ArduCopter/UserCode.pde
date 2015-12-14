@@ -6,6 +6,9 @@ static float MLX_90614_tempFactor = 0.02; // 0.02 degrees per LSB (measurement r
 
 static float MLX_90614_tempData = 0x0000; // zero out the data
 
+static bool gas_sensor_works = false;
+static bool MLX90614_works = false;
+
 #ifdef USERHOOK_INIT
 void userhook_init()
 {
@@ -13,6 +16,7 @@ void userhook_init()
     // this will be called once at start-up
     // CHANGE Roberto
 //    init_MLX90614();
+    init_gas_sensor();
 }
 #endif
 

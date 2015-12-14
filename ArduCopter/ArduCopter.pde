@@ -773,7 +773,6 @@ void Obstacle_Update() {
   } else {
     flag_o = 0;
   }
-  delay(1000);
   //hal.console->printf_P(PSTR("Distance, value = %f"), (float)DistanceSensor);
 } 
 
