@@ -1,10 +1,16 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
+// CHANGE Roberto
+static AP_HAL::AnalogSource *DistanceSensorReader;
+float DistanceSensor;
+int flag_o = 0;
 
 #ifdef USERHOOK_INIT
 void userhook_init()
 {
     // put your initialisation code here
     // this will be called once at start-up
+    // CHANGE Roberto
+    DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
 }
 #endif
 
@@ -42,3 +48,12 @@ void userhook_SuperSlowLoop()
     // put your 1Hz code here
 }
 #endif
+
+// CHANGE Roberto
+void Obstacle_Update() {
+  DistanceSensor = DistanceSensorReader->voltage_average()*1023/5;
+  if(DistanceSensor < 100)
+    flag_o = 1;
+  else
+    flag_o = 0;
+}
