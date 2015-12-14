@@ -10,7 +10,7 @@ static void vel_control_run();
 
 void init_firedrone();
 
-uint16_t start_time;
+uint32_t takeoff_start_time;
 
 static bool takeoff_init(bool ignore_checks)
 {
@@ -45,15 +45,15 @@ static bool takeoff_init(bool ignore_checks)
         hal.scheduler->delay(1000);
         uint16_t target_height = 100; // height in cm
         auto_takeoff_start(target_height); //Make this modular with params?
-        start_time = hal.scheduler->micros();
+        takeoff_start_time = hal.scheduler->micros();
         return true;
 }
 
 static void takeoff_run()
 {
-        uint16_t cur_time = hal.scheduler->micros();
+        uint16_t takeoff_cur_time = hal.scheduler->micros();
         uint16_t takeoff_backup_time = 2000;
-        if (cur_time - start_time > takeoff_backup_time) {
+        if (takeoff_cur_time - takeoff_start_time > takeoff_backup_time) {
           gcs_send_text_P(SEVERITY_HIGH, PSTR("Switched to backup land mode"));
           set_mode(LAND);
         } else if (!failsafe.radio) {
@@ -214,7 +214,7 @@ void init_firedrone(){
          */
         hal.scheduler->set_timer_speed(500);
 
-        baro.init();
+        barometer.init();
 
         // Do GPS init
         //gps.init(&DataFlash); DataFlash associated with Logging. we're not implementing logging yet. may be a source of error
@@ -227,7 +227,7 @@ void init_firedrone(){
         inertial_nav.init();
 
         // read Baro pressure at ground
-        baro.calibrate();
+        barometer.calibrate();
 
         // initialise ahrs (may push imu calibration into the mpu6000 if using that device).
         ahrs.init();
