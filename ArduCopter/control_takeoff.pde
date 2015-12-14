@@ -9,12 +9,13 @@ static void vel_control_start();
 static void vel_control_run();
 
 void init_firedrone();
+uint8_t starting;
 
 uint32_t takeoff_start_time;
 
 static bool takeoff_init(bool ignore_checks)
 {
-
+        hal.console->printf_P(PSTR("takeoff initialized"));
         // motor initialisation
         motors.set_update_rate(490); //RC_FAST_SPEED
         motors.set_frame_orientation(AP_MOTORS_X_FRAME);
@@ -38,6 +39,7 @@ static bool takeoff_init(bool ignore_checks)
         g.rc_3.set_range(130, 1000);
         g.rc_4.set_angle(4500);
         init_firedrone();
+        hal.console->printf_P(PSTR("motors.enable()"));
 
         motors.enable();
         motors.output_min();
@@ -45,18 +47,25 @@ static bool takeoff_init(bool ignore_checks)
         hal.scheduler->delay(1000);
         uint16_t target_height = 100; // height in cm
         auto_takeoff_start(target_height); //Make this modular with params?
-        takeoff_start_time = hal.scheduler->micros();
+        //takeoff_start_time = hal.scheduler->millis();
+        starting = 1;
         return true;
 }
 
 static void takeoff_run()
 {
-        uint16_t takeoff_cur_time = hal.scheduler->micros();
-        uint16_t takeoff_backup_time = 2000;
-        if (takeoff_cur_time - takeoff_start_time > takeoff_backup_time) {
-          gcs_send_text_P(SEVERITY_HIGH, PSTR("Switched to backup land mode"));
+        if (starting) {
+          starting = 0;
+          takeoff_start_time = hal.scheduler->millis();
+        }
+        uint16_t takeoff_cur_time = hal.scheduler->millis();
+        uint16_t takeoff_backup_time = 20000;
+        if ((takeoff_cur_time - takeoff_start_time) > takeoff_backup_time) {
+          hal.console->printf_P(PSTR("Switched to backup land mode"));
           set_mode(LAND);
         } else if (!failsafe.radio) {
+          
+          hal.console->printf_P(PSTR("calling auto_takeoff_run()"));
           auto_takeoff_run();
         } else {
           set_mode(LAND);

@@ -16,7 +16,7 @@ void userhook_init()
     // this will be called once at start-up
     // CHANGE Roberto
     DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
-    init_MLX90614();
+//    init_MLX90614();
 }
 #endif
 
@@ -64,7 +64,7 @@ void Obstacle_Update() {
     flag_o = 0;
 }
 /* Initialize IR sensor. */
-void init_MLX90614(){
+/*void init_MLX90614(){
         i2c_init(); //Initialise the i2c bus
         PORTC = (1 << PORTC4) | (1 << PORTC5);//enable pullups
 }
@@ -92,4 +92,4 @@ static void read_MLX90614() {
 
         hal.console->printf_P(PSTR("%d Kelvins \n"), (int16_t)MLX_90614_tempData); // no need to print but for val checking
 
-}
+}*/

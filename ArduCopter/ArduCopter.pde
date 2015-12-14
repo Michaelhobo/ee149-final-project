@@ -857,7 +857,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
         { three_hz_loop,        33,      90 },
         { compass_accumulate,    2,     420 },
         { barometer_accumulate,  2,     250 },
-        { read_MLX90614,	     2,     500 },
+        //{ read_MLX90614,	     2,     500 },
 #if FRAME_CONFIG == HELI_FRAME
         { check_dynamic_flight,  2,     100 },
 #endif
