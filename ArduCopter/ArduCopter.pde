@@ -343,6 +343,12 @@ static bool sonar_enabled = true; // enable user switch for sonar
 // Global variables
 ////////////////////////////////////////////////////////////////////////////////
 
+// CHANGE Roberto 
+// global variables for obstacle avoidance
+static AP_HAL::AnalogSource *DistanceSensorReader;
+float DistanceSensor;
+int flag_o = 0;
+
 /* Radio values
  *               Channel assignments
  *                       1	Ailerons (rudder if no ailerons)
@@ -758,6 +764,17 @@ static void pre_arm_checks(bool display_failure);
 // setup the var_info table
 AP_Param param_loader(var_info);
 
+// CHANGE Roberto
+// distance sensor update
+void Obstacle_Update() {
+  DistanceSensor = DistanceSensorReader->voltage_average()*1023/5;
+  if(DistanceSensor < 100)
+    flag_o = 1;
+  else
+    flag_o = 0;
+} 
+
+
 #if MAIN_LOOP_RATE == 400
 /*
    scheduler table for fast CPUs - all regular tasks apart from the fast_loop()
@@ -910,6 +927,8 @@ void setup()
 
         // initialise the main loop scheduler
         scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]));
+		
+		DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
 }
 
 /*
@@ -1010,6 +1029,7 @@ static void fast_loop()
                 update_optical_flow();
         }
 #endif  // OPTFLOW == ENABLED
+		Obstacle_Update();
 
 }
 
