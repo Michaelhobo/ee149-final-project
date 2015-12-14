@@ -16,7 +16,7 @@ static bool fly_init(bool ignore_checks)
 	return true;
 }
 static void continue_fly() {
-	Vector3f des_vel(30,0,0); //30 cm/s in the y direction
+	Vector3f des_vel(0,30,0); //30 cm/s in the y direction
 	pos_control.set_desired_velocity(des_vel);
 	firedrone_velocity_run();
 }
