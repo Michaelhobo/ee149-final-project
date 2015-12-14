@@ -768,10 +768,12 @@ AP_Param param_loader(var_info);
 // distance sensor update
 void Obstacle_Update() {
   DistanceSensor = DistanceSensorReader->voltage_average()*1023/5;
-  if(DistanceSensor < 100)
+  if(DistanceSensor < 60) {
     flag_o = 1;
-  else
+    hal.console->printf_P(PSTR("Distance < 60, value = %f"), (float)DistanceSensor);
+  } else {
     flag_o = 0;
+  }
 } 
 
 
