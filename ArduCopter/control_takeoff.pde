@@ -18,22 +18,22 @@ static bool takeoff_init(bool ignore_checks)
         motors.set_frame_orientation(AP_MOTORS_X_FRAME);
 
         uint16_t target_height = 100; // height in cm
-        auto_takeoff_start(target_height); //Make this modular with params?
+        guided_takeoff_start(target_height); //Make this modular with params?
 }
 
 static void takeoff_run()
 {
-	Vector3f curr_pos = inertial_nav.get_position();
+        Vector3f curr_pos = inertial_nav.get_position();
         if (!failsafe.radio) {
-        	if( curr_pos.z > 90 && inertial_nav.get_velocity_z() < 5){
-			set_mode(FLY);
-		}		
-      		else{
-			hal.console->printf_P(PSTR("calling auto_takeoff_run()"));
-           		auto_takeoff_run();
-		}
+                if( curr_pos.z > 90 && inertial_nav.get_velocity_z() < 5){
+                        set_mode(FLY);
+                }		
+                else{
+                        hal.console->printf_P(PSTR("calling auto_takeoff_run()"));
+                        guided_takeoff_run();
+                }
         } else {
-          set_mode(LAND);
+                set_mode(LAND);
         }
 }
 
