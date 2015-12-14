@@ -31,4 +31,7 @@ static void obstacle_run()
   vel_control_run();
   attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
   motors.output();*/
+  turn(get_yaw()+90);
+  attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor
+  motors.output();
 }
