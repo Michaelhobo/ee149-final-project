@@ -1,7 +1,11 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 // CHANGE Roberto
 static void read_MLX90614();
-void init_MLX90614();
+static void init_MLX90614();
+static void init_gas_sensor();
+static void read_gas_sensor();
+
+
 static float MLX_90614_tempFactor = 0.02; // 0.02 degrees per LSB (measurement resolution of the MLX90614)
 
 static float MLX_90614_tempData = 0x0000; // zero out the data
@@ -12,6 +16,8 @@ static bool rangefinder_works = false;
 static int gas_sensor_high = 100;
 static int MLX90614_heat_high = 315;
 static int rangefinder_low = 60;
+static AP_HAL::AnalogSource *gas_sensor_MQ2_read;
+static float gas_analogIN;
 
 
 #ifdef USERHOOK_INIT
@@ -20,8 +26,8 @@ void userhook_init()
     // put your initialisation code here
     // this will be called once at start-up
     // CHANGE Roberto
-//    init_MLX90614();
-    init_gas_sensor();
+    // init_MLX90614();
+    // init_gas_sensor();
 }
 #endif
 
@@ -62,12 +68,19 @@ void userhook_SuperSlowLoop()
 #endif
 
 /* Initialize IR sensor. */
-void init_MLX90614(){
+static void init_MLX90614(){
         i2c_init(); //Initialise the i2c bus
         PORTC = (1 << PORTC4) | (1 << PORTC5);//enable pullups
 }
 static void init_gas_sensor() {
+    gas_analogIN = 0;
+    gas_sensor_MQ2_read = hal.analogin->channel(3);
 }
+
+static void read_gas_sensor() {
+    gas_analogIN = gas_sensor_MQ2_read->voltage_average()*1023/5; // need to mod this and see the numbers should be
+}
+
 static void read_MLX90614() {
 
         static int32_t dev = 0x5A<<1;
