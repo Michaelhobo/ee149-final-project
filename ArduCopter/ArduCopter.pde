@@ -97,6 +97,7 @@
 #include <AP_HAL_FLYMAPLE.h>
 #include <AP_HAL_Linux.h>
 #include <AP_HAL_Empty.h>
+#include "i2cmaster.h"
 
 // Application dependencies
 #include <GCS.h>
@@ -788,7 +789,6 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
         { three_hz_loop,       133,      9 },
         { compass_accumulate,    8,     42 },
         { barometer_accumulate,  8,     25 },
-        { read_MLX90614,	     2,     500 },
 #if FRAME_CONFIG == HELI_FRAME
         { check_dynamic_flight,  8,     10 },
 #endif
@@ -857,6 +857,7 @@ static const AP_Scheduler::Task scheduler_tasks[] PROGMEM = {
         { three_hz_loop,        33,      90 },
         { compass_accumulate,    2,     420 },
         { barometer_accumulate,  2,     250 },
+        { read_MLX90614,	     2,     500 },
 #if FRAME_CONFIG == HELI_FRAME
         { check_dynamic_flight,  2,     100 },
 #endif

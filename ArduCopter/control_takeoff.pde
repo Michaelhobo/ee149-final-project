@@ -1,9 +1,5 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-#include "i2cmaster.h"
 
-static float MLX_90614_tempFactor = 0.02; // 0.02 degrees per LSB (measurement resolution of the MLX90614)
-
-static float MLX_90614_tempData = 0x0000; // zero out the data
 uint32_t timer;
 static int16_t start = 1; //used to switch from takeoff to land
 uint32_t start_time;
@@ -13,11 +9,8 @@ static void vel_control_start();
 static void vel_control_run();
 
 void init_firedrone();
-static void read_MLX90614();
-void init_MLX90614();
 
-AP_Baro_MS5611 baro(&AP_Baro_MS5611::spi);
-
+uint16_t start_time;
 
 static bool takeoff_init(bool ignore_checks)
 {
@@ -45,53 +38,56 @@ static bool takeoff_init(bool ignore_checks)
         g.rc_3.set_range(130, 1000);
         g.rc_4.set_angle(4500);
         init_firedrone();
-        init_MLX90614();
-        // initialise the main loop scheduler
-        //scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]));
-
 
         motors.enable();
         motors.output_min();
 
         hal.scheduler->delay(1000);
+        uint16_t target_height = 100; // height in cm
+        auto_takeoff_start(target_height); //Make this modular with params?
+        start_time = hal.scheduler->micros();
         return true;
 }
 
 static void takeoff_run()
 {
-        int16_t value;
-        start_time = hal.scheduler->micros();
-        current_time = hal.scheduler->micros();
-        while((current_time - start_time)/1000000 < 25){ //loop for 25 seconds
-
+        uint16_t cur_time = hal.scheduler->micros();
+        uint16_t takeoff_backup_time = 2000;
+        if (cur_time - start_time > takeoff_backup_time) {
+          gcs_send_text_P(SEVERITY_HIGH, PSTR("Switched to backup land mode"));
+          set_mode(LAND);
+        } else if (!failsafe.radio) {
+          auto_takeoff_run();
+        } else {
+          set_mode(LAND);
+        }
+        //start_time = hal.scheduler->micros();
+        //current_time = hal.scheduler->micros();
+        //while((current_time - start_time)/1000000 < 25){ //loop for 25 seconds
                 // wait for an INS sample
-                ins.wait_for_sample();
+                //ins.wait_for_sample();
                 //hal.console->println("got ins sample");
 
-                timer = hal.scheduler->micros();	
+                //timer = hal.scheduler->micros();	
 
                 // used by PI Loops
-                G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
-                fast_loopTimer          = timer;
+                //G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.f;
+                //fast_loopTimer          = timer;
 
                 //hal.console->println("about to run takeoff_move_land");
-                takeoff_move_land();
-
-                // tell the scheduler one tick has passed
-                scheduler.tick();
+                //takeoff_move_land();
 
                 // run all the tasks that are due to run. Note that we only
                 // have to call this once per loop, as the tasks are scheduled
                 // in multiples of the main loop tick. So if they don't run on
                 // the first call to the scheduler they won't run on a later
                 // call until scheduler.tick() is called again
-                uint32_t time_available = (timer + MAIN_LOOP_MICROS) - hal.scheduler->micros();
-                scheduler.run(time_available);
+                //uint32_t time_available = (timer + MAIN_LOOP_MICROS) - hal.scheduler->micros();
 
                 //hal.console->println("ran scheduler");
-                current_time = hal.scheduler->micros();
-        }
-        motors.output_min();
+                //current_time = hal.scheduler->micros();
+        //}
+        //motors.output_min();
 }
 
 
@@ -105,14 +101,14 @@ void takeoff_move_land(){
 
         int16_t time_passed = timer-start_time/1000000; //in seconds 
         if(start == 1){
-                auto_takeoff_start(100);
+                //auto_takeoff_start(100);
                 start++;
                 //hal.console->println("ran auto_takeoff_start");
         }
         else if(time_passed < 10){ //takeoff for ten seconds
-                ahrs.update();
-                attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor as a function of _rate_bf_target
-                motors.output();
+                //ahrs.update();
+                //attitude_control.rate_controller_run(); //sets roll pitch and yaw for the motor as a function of _rate_bf_target
+                //motors.output();
                 auto_takeoff_run();
 
                 throttle_radio_in = g.rc_3.radio_out;
@@ -204,12 +200,6 @@ static void vel_control_run(){
         hal.console->printf_P(PSTR("velocity roll: %d \t velocity pitch: %d \t velocity yaw: %d \t"), 
                         (int)pos_control.get_roll(), (int)pos_control.get_pitch(), (int)heading);
 
-}
-
-/* Initialize IR sensor. */
-void init_MLX90614(){
-        //i2c_init(); //Initialise the i2c bus
-        PORTC = (1 << PORTC4) | (1 << PORTC5);//enable pullups
 }
 
 /* Initialize firedrone data. */

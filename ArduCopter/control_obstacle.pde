@@ -2,7 +2,8 @@
 
 static bool obstacle_init(bool ignore_checks)
 {
-  return false;
+  motors.output_min();
+  return true;
 }
 
 static void obstacle_run()
