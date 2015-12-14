@@ -20,8 +20,12 @@ void userhook_init()
     // put your initialisation code here
     // this will be called once at start-up
     // CHANGE Roberto
-//    init_MLX90614();
+    init_MLX90614();
     init_gas_sensor();
+    rangefinder_works = true; //No good check for it right now
+    //TODO see if gas sensor and MLX work.
+    gas_sensor_works = true;
+    MLX90614_works = false;
 }
 #endif
 
