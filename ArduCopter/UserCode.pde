@@ -48,6 +48,7 @@ void userhook_SlowLoop()
 void userhook_SuperSlowLoop()
 {
     // put your 1Hz code here
+    Obstacle_Update();
 }
 #endif
 

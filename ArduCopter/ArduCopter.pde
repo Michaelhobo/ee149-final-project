@@ -770,10 +770,11 @@ void Obstacle_Update() {
   DistanceSensor = DistanceSensorReader->voltage_average()*1023/5;
   if(DistanceSensor < 60) {
     flag_o = 1;
-    hal.console->printf_P(PSTR("Distance < 60, value = %f"), (float)DistanceSensor);
   } else {
     flag_o = 0;
   }
+  delay(1000);
+  hal.console->printf_P(PSTR("Distance, value = %f"), (float)DistanceSensor);
 } 
 
 
@@ -930,7 +931,7 @@ void setup()
         // initialise the main loop scheduler
         scheduler.init(&scheduler_tasks[0], sizeof(scheduler_tasks)/sizeof(scheduler_tasks[0]));
 		
-		DistanceSensorReader = hal.analogin->channel(1);  // analog input A1
+		DistanceSensorReader = hal.analogin->channel(0);  // analog input A1
 }
 
 /*
