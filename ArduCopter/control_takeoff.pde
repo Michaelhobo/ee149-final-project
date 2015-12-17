@@ -27,7 +27,7 @@ static void takeoff_run()
         Vector3f curr_pos = inertial_nav.get_position();
         if (!failsafe.radio) {
                 hal.console->printf_P(PSTR("radio ok"));
-                if( curr_pos.z > 90 && inertial_nav.get_velocity_z() < 5){
+                if( curr_pos.z > 200 && inertial_nav.get_velocity_z() < 5){
                         hal.console->printf_P(PSTR("set mode fly"));
                         set_mode(FLY);
                 }		
