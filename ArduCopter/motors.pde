@@ -337,12 +337,12 @@ static void pre_arm_checks(bool display_failure)
     }
 
     // check fence is initialised
-    if(!fence.pre_arm_check()) {
-        if (display_failure) {
-            gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: check fence"));
-        }
-        return;
-    }
+    //if(!fence.pre_arm_check()) {
+    //    if (display_failure) {
+    //        gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: check fence"));
+    //    }
+    //    return;
+    //}
 
     // check INS
     if ((g.arming_check == ARMING_CHECK_ALL) || (g.arming_check & ARMING_CHECK_INS)) {

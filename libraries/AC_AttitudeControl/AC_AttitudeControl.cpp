@@ -2,6 +2,7 @@
 
 #include "AC_AttitudeControl.h"
 #include <AP_HAL.h>
+#include <AP_HAL_AVR.h>
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl::var_info[] PROGMEM = {
@@ -62,6 +63,8 @@ const AP_Param::GroupInfo AC_AttitudeControl::var_info[] PROGMEM = {
 
     AP_GROUPEND
 };
+
+extern const AP_HAL::HAL& hal;
 
 //
 // high level controllers
@@ -416,6 +419,10 @@ void AC_AttitudeControl::rate_controller_run()
     _motors.set_roll(rate_bf_to_motor_roll(_rate_bf_target.x));
     _motors.set_pitch(rate_bf_to_motor_pitch(_rate_bf_target.y));
     _motors.set_yaw(rate_bf_to_motor_yaw(_rate_bf_target.z));
+    /*hal.console->printf_P(PSTR("set_roll: %d, set_pitch: %d, set_yaw: %d\n"), 
+						(int)rate_bf_to_motor_roll(_rate_bf_target.x),
+						(int)rate_bf_to_motor_pitch(_rate_bf_target.y),
+						(int)rate_bf_to_motor_yaw(_rate_bf_target.z));*/
 }
 
 //

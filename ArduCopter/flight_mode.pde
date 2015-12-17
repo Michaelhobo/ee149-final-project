@@ -34,6 +34,9 @@ static bool set_mode(uint8_t mode)
         case FIRE:
             success = fire_init(ignore_checks);
             break;
+        case KILL:
+            success = kill_init(ignore_checks);
+            break;
 
         case ACRO:
             #if FRAME_CONFIG == HELI_FRAME
@@ -168,6 +171,21 @@ static void update_flight_mode()
         case CIRCLE:
             circle_run();
             break;
+        // FIREDRONE
+        case FIRE:
+            fire_run();
+            break;
+        case FLY:
+            fly_run();
+            break;
+        case OBSTACLE:
+            obstacle_run();
+            break;
+        case TAKEOFF:
+            takeoff_run();
+            break;
+        case KILL:
+            kill_run();
 
         case LOITER:
             loiter_run();

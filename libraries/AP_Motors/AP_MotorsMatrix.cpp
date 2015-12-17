@@ -329,7 +329,12 @@ void AP_MotorsMatrix::output_armed()
     // send output to each motor
     for( i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++ ) {
         if( motor_enabled[i] ) {
-            hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[i]), motor_out[i]);
+	    if (i == 1){
+		hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[i]), motor_out[i]*.983);
+	    }
+            else{
+		hal.rcout->write(pgm_read_byte(&_motor_to_channel_map[i]), motor_out[i]);
+	    }
         }
     }
 }
